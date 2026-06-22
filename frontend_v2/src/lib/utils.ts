@@ -114,6 +114,115 @@ function haversineMeters(p1: GeoCoordinate, p2: GeoCoordinate): number {
               Math.sin(dLng / 2) * Math.sin(dLng / 2);
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
+
+export async function generateSafeRoute(
+  start: GeoCoordinate,
+  end: GeoCoordinate,
+  hazards: HazardPoint[]
+): Promise<SafeRouteResult> {
+
+  const HAZARD_RADIUS_M = 300;
+
+  // 1. Fetch all available routes from OSRM (with alternatives)
+  const url = `https://router.project-osrm.org/route/v1/driving/${start[0]},${start[1]};${end[0]},${end[1]}?overview=full&geometries=geojson&alternatives=true`;
+
+  let rawRoutes: { coordinates: GeoCoordinate[]; distance: number; duration: number }[] = [];
+
+  try {
+    const res = await fetch(url);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.routes?.length > 0) {
+        rawRoutes = data.routes.map((r: any) => ({
+          coordinates: r.geometry.coordinates as GeoCoordinate[],
+          distance: r.distance,
+          duration: r.duration,
+        }));
+      }
+    }
+  } catch {
+    // Network failure — fall through to empty result below
+  }
+
+  // 2. Helper: count hazards on a route and compute a 0–100 risk score
+  function analyzeRoute(coords: GeoCoordinate[]): { incidents: number; score: number } {
+    let incidents = 0;
+    let totalSeverity = 0;
+    for (const hazard of hazards) {
+      const hazardCoord: GeoCoordinate = [hazard.lon, hazard.lat];
+      const onRoute = coords.some(
+        (pt) => haversineMeters(pt, hazardCoord) <= HAZARD_RADIUS_M
+      );
+      if (onRoute) {
+        incidents++;
+        totalSeverity += hazard.severity;
+      }
+    }
+    return { incidents, score: Math.min(100, totalSeverity * 5) };
+  }
+
+  // 3. No routes returned — safe empty fallback
+  if (rawRoutes.length === 0) {
+    return {
+      riskLevel: "SAFE",
+      riskScore: 0,
+      incidentsOnRoute: 0,
+      explanation: "No route data could be retrieved.",
+      best: {
+        label: "Primary Route",
+        explanation: "Unable to fetch route data.",
+        incidentsOnRoute: 0,
+      },
+      alternatives: [],
+    };
+  }
+
+  // 4. Score every route option
+  const scored = rawRoutes.map((r, i) => {
+    const { incidents, score } = analyzeRoute(r.coordinates);
+    const option: RouteOption = {
+      label: i === 0 ? "Primary Route" : `Alternative ${i}`,
+      explanation:
+        incidents === 0
+          ? "No hazards detected along this route."
+          : `${incidents} hazard(s) found within 300m of this route.`,
+      incidentsOnRoute: incidents,
+      distanceM: r.distance,
+      durationS: r.duration,
+      coordinates: r.coordinates,
+    };
+    return { option, score };
+  });
+
+  // 5. Sort safest first
+  scored.sort((a, b) => a.score - b.score);
+
+  const best = scored[0].option;
+  const bestScore = scored[0].score;
+  const alternatives = scored.slice(1).map((s) => s.option);
+
+  // 6. Determine overall risk level from the best available route
+  const riskLevel: "SAFE" | "WARNING" | "CRITICAL" =
+    bestScore === 0 ? "SAFE" : bestScore < 30 ? "WARNING" : "CRITICAL";
+
+  const explanation =
+    best.incidentsOnRoute === 0
+      ? "Your best route is clear of all detected hazards."
+      : `Best route has ${best.incidentsOnRoute} hazard(s) nearby. ${
+          alternatives.length > 0
+            ? "Safer alternatives are listed below."
+            : "No safer alternatives were found."
+        }`;
+
+  return {
+    riskLevel,
+    riskScore: bestScore,
+    incidentsOnRoute: best.incidentsOnRoute,
+    explanation,
+    best,
+    alternatives,
+  };
+}
 //fake data
 export const newsItems :Array<NewsItem> = [
     {
@@ -318,6 +427,11 @@ export interface HazardReportPayload {
   hazardType: string;
 }
 
+export interface HazardPoint {
+  lat: number;
+  lon: number;
+  severity: number; // e.g. 9 = CRITICAL, 6 = HIGH, 3 = MEDIUM
+}
 /**
  * Dispatches a reported hazard to the application backend system
  */
@@ -369,6 +483,23 @@ export interface UIHazardReport {
   };
 }
 
+export interface RouteOption {
+  label: string;
+  explanation: string;
+  incidentsOnRoute: number;
+  distanceM?: number;
+  durationS?: number;
+  coordinates?: GeoCoordinate[];
+}
+
+export interface SafeRouteResult {
+  riskLevel: "SAFE" | "WARNING" | "CRITICAL";
+  riskScore: number;
+  incidentsOnRoute: number;
+  explanation: string;
+  best: RouteOption;
+  alternatives: RouteOption[];
+}
 /**
  * Parses a backend database timestamp into a human-friendly relative time string
  */
