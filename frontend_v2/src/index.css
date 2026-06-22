@@ -1,0 +1,22 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+body{
+  background-color: oklch(28.2% 0.091 267.935);
+  margin:0;
+  padding: 0;
+  width:100%;
+}
+
+
+.logo-font {
+  font-family: "Satisfy", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 700;
+  font-style: normal;
+  font-size: 1.5rem;
+  color: white;
+  display: inline-block;
+}
