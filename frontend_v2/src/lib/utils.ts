@@ -9,6 +9,8 @@ import newImage1 from "../assets/newImage1.jpg"
 import newImage2 from "../assets/newImage2.jpg"
 import newImage3 from "../assets/newImage2.jpg"
 import { redirect } from "react-router"
+import * as turf from "@turf/turf";
+   
 
 //do not modify this code it came with installations
 export function cn(...inputs: ClassValue[]) {
@@ -247,8 +249,7 @@ export async function fetchRoutes(
     }
 
 
-    import * as turf from "@turf/turf";
-   
+  
     
     /**
  * Checks if a route line intercepts a circular avoidance area.
@@ -281,7 +282,7 @@ export function doesRouteInterceptAvoidZone(
   return shortestDistance <= avoidRadiusInKm;
 }
 
-const BASE_URL = "http://localhost:5000";
+const BASE_URL = "https://mapper-backend-brkn.onrender.com";
 /**
  * Fetches accident history and extracts a flat array of coordinates
  * @returns Promise<[number, number][]> - An array of [longitude, latitude] pairs
@@ -544,7 +545,7 @@ export async function logUserDestination(
 }
 
 // Assuming DestinationLog type matching your utility signature
-export interface DestinationLog {
+export interface UIDestinationLog {
     id?: string | number;
     name: string;
     address?: string;
