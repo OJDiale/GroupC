@@ -210,8 +210,8 @@ export async function generateSafeRoute(
       ? "Your best route is clear of all detected hazards."
       : `Best route has ${best.incidentsOnRoute} hazard(s) nearby. ${
           alternatives.length > 0
-            ? "Safer alternatives are listed below."
-            : "No safer alternatives were found."
+            ? ""
+            : ""
         }`;
 
   return {
