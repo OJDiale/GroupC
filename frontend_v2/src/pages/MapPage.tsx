@@ -248,7 +248,7 @@ useEffect(() => {
           ? "text-yellow-400"
           : "text-red-400";
 
-      if (result.riskLevel === "SAFE" && result.incidentsOnRoute === 0) {
+      if (result.riskLevel === "SAFE" && result.incidentsOnRoute === 0 && newFeatures.length === 0) {
         toast.custom(
           (t) => (
             <div
