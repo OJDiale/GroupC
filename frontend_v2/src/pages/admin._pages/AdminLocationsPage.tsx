@@ -15,7 +15,7 @@ interface ToastState {
 }
 
 // Fallback configuration mimicry. Replace with process.env.REACT_APP_API_BASE_URL if needed.
-const API_BASE_URL = (window as any).CONFIG?.API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = (window as any).CONFIG?.API_BASE_URL || 'https://mapper-backend-brkn.onrender.com';
 const API = `${API_BASE_URL}/api/areas`;
 
 const LocationsPage: React.FC = () => {
