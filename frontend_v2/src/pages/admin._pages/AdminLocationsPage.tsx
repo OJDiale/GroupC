@@ -53,7 +53,7 @@ interface ToastState {
   type: 'success' | 'error' | '';
 }
 
-const API_BASE_URL = (window as any).CONFIG?.API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = (window as any).CONFIG?.API_BASE_URL || 'https://mapper-backend-brkn.onrender.com';
 const API = `${API_BASE_URL}/api/admin-user/destinations`;
 
 const LocationsPage: React.FC = () => {
