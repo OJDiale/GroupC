@@ -716,7 +716,7 @@ export function doesRouteInterceptAvoidZone(
   return shortestDistance <= avoidRadiusInKm;
 }
 
-const BASE_URL = "http://localhost:5000";
+const BASE_URL = "https://mapper-backend-brkn.onrender.com";
 
 export async function fetchAccidentCoordinates(): Promise<[number, number][]> {
   try {
