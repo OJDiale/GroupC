@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router';
- 
+
 // Define the interface for our navigation links
 interface NavItem {
   href: string;
@@ -8,10 +8,10 @@ interface NavItem {
   label: string;
   sub: string;
 }
- 
+
 const Admin: React.FC = () => {
   const navigate = useNavigate();
- 
+
   // Navigation data array for cleaner maintenance
   // Only pages that are actually built and wired up are listed here.
   const navItems: NavItem[] = [
@@ -34,13 +34,13 @@ const Admin: React.FC = () => {
       sub: 'Edit hazard type & remove reports',
     },
   ];
- 
+
   const handleLogout = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     localStorage.clear();
     navigate('/');
   };
- 
+
   return (
     <div className="relative min-h-screen font-sans bg-[hsl(0,0%,10%)] text-white overflow-x-hidden">
       {/* Background Image Overlay */}
@@ -92,5 +92,5 @@ const Admin: React.FC = () => {
     </div>
   );
 };
- 
+
 export default Admin;
