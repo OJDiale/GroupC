@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router';
-
+ 
 // Define the interface for our navigation links
 interface NavItem {
   href: string;
@@ -8,64 +8,46 @@ interface NavItem {
   label: string;
   sub: string;
 }
-
-const RouteSafetyMonitor: React.FC = () => {
-
-  const navgate = useNavigate()
+ 
+const Admin: React.FC = () => {
+  const navigate = useNavigate();
+ 
   // Navigation data array for cleaner maintenance
+  // Only pages that are actually built and wired up are listed here.
   const navItems: NavItem[] = [
+    {
+      href: '/admin_users',
+      icon: '👤',
+      label: 'Driver Management',
+      sub: 'Reset passwords & remove drivers',
+    },
     {
       href: '/admin_locations',
       icon: '📍',
-      label: 'Saved Locations',
-      sub: 'Manage area coordinates',
+      label: 'Destinations',
+      sub: 'View logged user destinations',
     },
     {
-      href: '/users.html',
-      icon: '👤',
-      label: 'User Profiles',
-      sub: 'Add, update & delete users',
-    },
-    {
-      href: '/reports.html',
-      icon: '📋',
-      label: 'User Reports',
-      sub: 'Browse submitted reports',
-    },
-    {
-      href: '/saved_routes.html',
-      icon: '🗺️',
-      label: 'Saved Routes',
-      sub: 'View route history',
-    },
-    {
-      href: '/alert_log.html',
-      icon: '🔔',
-      label: 'Alert Logs',
-      sub: 'Manage alert notifications',
-    },
-    {
-      href: '/incidents.html',
+      href: '/admin_reports',
       icon: '⚠️',
-      label: 'Incident Archive',
-      sub: 'Log & track incidents',
+      label: 'Hazard Reports',
+      sub: 'Edit hazard type & remove reports',
     },
   ];
-
+ 
   const handleLogout = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-     localStorage.clear()
-      navgate("/")
+    localStorage.clear();
+    navigate('/');
   };
-
+ 
   return (
     <div className="relative min-h-screen font-sans bg-[hsl(0,0%,10%)] text-white overflow-x-hidden">
       {/* Background Image Overlay */}
-      <div 
+      <div
         className="fixed inset-0 z-0 bg-cover bg-center brightness-[0.52] saturate-[0.8]"
         style={{ backgroundImage: `url('background-image.jpeg')` }}
       />
-
       {/* Main Content Container */}
       <div className="relative z-10 max-w-[900px] mx-auto px-16 py-[60px] max-sm:px-6">
         <header>
@@ -79,10 +61,8 @@ const RouteSafetyMonitor: React.FC = () => {
             Administrative User Portal
           </div>
         </header>
-
         {/* Divider */}
         <hr className="border-0 border-t border-white/20 my-7" />
-
         {/* Navigation Grid */}
         <nav className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4 mt-8">
           {navItems.map((item, index) => (
@@ -99,7 +79,6 @@ const RouteSafetyMonitor: React.FC = () => {
             </Link>
           ))}
         </nav>
-
         {/* Logout Form Component */}
         <form className="mt-8" onSubmit={handleLogout} method="POST">
           <button
@@ -113,5 +92,5 @@ const RouteSafetyMonitor: React.FC = () => {
     </div>
   );
 };
-
-export default RouteSafetyMonitor;
+ 
+export default Admin;
