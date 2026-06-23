@@ -168,7 +168,13 @@ export default function MapPage(): React.JSX.Element {
     );
     return () => navigator.geolocation.clearWatch(id);
   }, []);
-
+useEffect(() => {
+  if (!coords) return;
+  setDraggableMarker({
+    lng: coords[0] as number,
+    lat: coords[1] as number,
+  });
+}, [coords]);
   // ─────────────────────────────────────────────────────────────────────────
   // runCheck — full SafeMaster-style route check + rerouting
   // ─────────────────────────────────────────────────────────────────────────
