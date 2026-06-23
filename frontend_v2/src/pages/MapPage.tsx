@@ -287,35 +287,54 @@ useEffect(() => {
           { duration: 3000, position: "top-center" }
         );
       } else {
-        <div className="flex-1 p-3 flex flex-col gap-2">
-  <div className="flex items-center gap-3">
-    <div className="flex-shrink-0">
-      <div className="h-8 w-8 rounded-md bg-indigo-500/20 flex items-center justify-center border border-indigo-400/20">
-        <Sparkles className="h-4 w-4 text-indigo-400" />
-      </div>
-    </div>
-    <div className="flex-1 min-w-0">
-      <p className="text-[11px] font-black text-indigo-400 uppercase tracking-tighter">
-        AI Scan Complete
-      </p>
-      <p className={`text-xs font-medium truncate ${riskColor}`}>
-        {result.riskLevel} · {result.incidentsOnRoute} hazard(s) on route.
-      </p>
-      <p className="text-[10px] text-slate-400 truncate mt-0.5">
-        {result.explanation}
-      </p>
-      {result.alternatives.length > 0 && (
-        <p className="text-[10px] text-indigo-300 mt-0.5">
-          {result.alternatives.length} safer alternative(s) available.
-        </p>
-      )}
-    </div>
-  </div>
-  
-</div>
-          
-          // { duration: 60000, position: "top-center" }
-        // );
+        toast.custom(
+          (t) => (
+            <div
+              className={`${
+                t.visible ? "animate-enter" : "animate-leave"
+              } max-w-xs w-full bg-slate-900/95 border border-indigo-500/40 shadow-xl 
+                rounded-lg pointer-events-auto flex backdrop-blur-md overflow-hidden group`}
+            >
+              <div className="w-1 bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.8)]" />
+              <div className="flex-1 p-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0">
+                    <div className="h-8 w-8 rounded-md bg-indigo-500/20 flex items-center justify-center border border-indigo-400/20">
+                      <Sparkles className="h-4 w-4 text-indigo-400" />
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-black text-indigo-400 uppercase tracking-tighter">
+                      AI Scan Complete
+                    </p>
+                    <p className={`text-xs font-medium truncate ${riskColor}`}>
+                      {result.riskLevel} · {result.incidentsOnRoute} hazard(s) on route.
+                    </p>
+                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                      {result.explanation}
+                    </p>
+                    {result.alternatives.length > 0 && (
+                      <p className="text-[10px] text-indigo-300 mt-0.5">
+                        {result.alternatives.length} safer alternative(s) available.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  getData();
+                  toast.dismiss(t.id);
+                }}
+                className="px-3 border-l border-slate-800 text-[10px] font-bold uppercase 
+                           text-slate-500 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                Safe Path
+              </button>
+            </div>
+          ),
+          { duration: 60000, position: "top-center" }
+        );
       }
     }
 
