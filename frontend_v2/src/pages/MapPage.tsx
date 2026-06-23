@@ -313,7 +313,7 @@ useEffect(() => {
   </div>
   
 </div>
-          ),
+          
           { duration: 60000, position: "top-center" }
         );
       }
