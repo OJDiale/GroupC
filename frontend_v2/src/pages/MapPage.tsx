@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { NavLink, Outlet, useNavigate, useSearchParams } from "react-router";
+import { NavLink, Outlet, useSearchParams } from "react-router";
 import { 
   Mountain, Map as MapIcon, 
   History, Radio, 
@@ -24,7 +24,6 @@ import {
   submitHazardReport,
   fetchAndResolveHazardReports,
   logUserDestination,
-  // ── SafeMaster rerouting ──────────────────────────────────────────────────
   generateSafeRoute,
   type SafeRouteResult,
   type HazardPoint,
@@ -50,8 +49,6 @@ export default function MapPage(): React.JSX.Element {
   const [dataSuggested, setDataSuggested] = useState([]);
   const [style, setStyle] = useState<StyleKey>("default");
   const mapRef = useRef<MapRef>(null);
-  const is3D = style === "openstreetmap3d";
-  const selectedStyle = styles[style];
   const [report, setReport] = useState<boolean>(false)
   const [draggableMarker, setDraggableMarker] = useState({
     lng: (coords[0] as number),
@@ -90,7 +87,7 @@ export default function MapPage(): React.JSX.Element {
   const [safeRouteResult, setSafeRouteResult] = useState<SafeRouteResult | null>(null);
   const [selectedAltIndex, setSelectedAltIndex] = useState<number | null>(null);
 
-  // 2. LOGIC: Handle Geolocation (Run once on mount)
+  // Handle Geolocation (Run once on mount)
   useEffect(() => {
     const id = navigator.geolocation.watchPosition(
       (pos) => {
@@ -103,7 +100,7 @@ export default function MapPage(): React.JSX.Element {
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // runCheck — full SafeMaster-style route check + rerouting
+  // runCheck — optimized full route scan and smart notifications
   // ─────────────────────────────────────────────────────────────────────────
   async function runCheck() {
     if (!coords || !distinationLat || !distinationLon) {
@@ -116,10 +113,8 @@ export default function MapPage(): React.JSX.Element {
     setSafeRouteResult(null);
     setSelectedAltIndex(null);
 
-    // 1. Fetch standard OSRM routes (for the Outlet / MapCurrent display)
     await fetchRoutes(coords as [number, number], distinationLat, distinationLon, setRoutes, setIsLoading);
 
-    // 2. Fetch hazard reports from backend
     const uHazardReports = await fetchAndResolveHazardReports();
     const hazards: HazardPoint[] = uHazardReports.map((r) => ({
       lat: r.lat,
@@ -127,11 +122,9 @@ export default function MapPage(): React.JSX.Element {
       severity: r.severity === "CRITICAL" ? 9 : r.severity === "HIGH" ? 6 : 3,
     }));
 
-    // Also add the draggable marker position as a hazard point if reporting
     const accidentCoords: [number, number][] = uHazardReports.map((r) => [r.lng, r.lat]);
     setPlacesToAvoid([...accidentCoords, [draggableMarker.lng, draggableMarker.lat]]);
 
-    // 3. Run SafeMaster-style route generation with risk scoring + detours
     const startCoord: GeoCoordinate = [coords[0] as number, coords[1] as number];
     const endCoord: GeoCoordinate = [distinationLon as number, distinationLat as number];
 
@@ -143,22 +136,16 @@ export default function MapPage(): React.JSX.Element {
       console.error("generateSafeRoute failed:", err);
     }
 
-    // 4. Build avoidance features for the Layer overlay
     const newFeatures: any[] = [];
-    accidentCoords.forEach((point, index) => {
+    accidentCoords.forEach((point) => {
       if (
         doesRouteInterceptAvoidZone(routes[0]?.coordinates, point as [number, number]) ||
         doesRouteInterceptAvoidZone(routes[1]?.coordinates, point as [number, number])
       ) {
         newFeatures.push({
           type: "Feature",
-          properties: {
-            name: "High Accident Zone",
-          },
-          geometry: {
-            type: "Point",
-            coordinates: point,
-          },
+          properties: { name: "High Accident Zone" },
+          geometry: { type: "Point", coordinates: point },
         });
       }
     });
@@ -166,103 +153,85 @@ export default function MapPage(): React.JSX.Element {
     setAvoidanceGeoJSON({ type: "FeatureCollection", features: newFeatures });
     setDisPlacesToAvoid(newFeatures.length > 0);
 
-    // 5. Toast notification — SafeMaster style with risk level
+    // ── User-Friendly Custom Toasts ──────────────────────────────────────────
     if (result) {
-      const riskColor =
-        result.riskLevel === "SAFE"
-          ? "text-green-400"
-          : result.riskLevel === "WARNING"
-          ? "text-yellow-400"
-          : "text-red-400";
+      const isRouteClear = result.riskLevel === "SAFE" && result.incidentsOnRoute === 0;
 
-      if (result.riskLevel === "SAFE" && result.incidentsOnRoute === 0) {
-        toast.custom(
-          (t) => (
-            <div
-              className={`p-5 w-100 ${
-                t.visible ? "animate-enter" : "animate-leave"
-              } max-w-xs w-full bg-slate-900/95  border border-indigo-500/40 shadow-xl 
-                rounded-lg pointer-events-auto flex backdrop-blur-md overflow-hidden group`}
-            >
-              <div className="w-1 bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.8)]" />
-              <div className="flex-1 p-2">
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0">
-                    <div className="h-8 w-8 rounded-md bg-indigo-500/20 flex items-center justify-center border border-indigo-400/20">
-                      <Sparkles className="h-4 w-4 text-indigo-400" />
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-black text-indigo-400 uppercase tracking-tighter">
-                      AI Scan Complete
-                    </p>
-                    <p className="text-xs text-slate-200 font-medium truncate">
-                      Route is clear. Proceed safely.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => toast.dismiss(t.id)}
-              className="flex-shrink-0 self-stretch flex items-center whitespace-nowrap px-3 border-l border-slate-800 text-[10px] font-bold uppercase 
-             text-slate-500 hover:text-white hover:bg-white/5 transition-colors"
-              >
-                Hide
-              </button>
-            </div>
-          ),
-          { duration: 3000, position: "top-center" }
-        );
-      } else {
-        toast.custom(
-          (t) => (
-            <div
-              className={`p-5 w-100 ${
-                t.visible ? "animate-enter" : "animate-leave"
-              } max-w-xs w-full bg-slate-900/95 border border-indigo-500/40 shadow-xl 
-                rounded-lg pointer-events-auto flex backdrop-blur-md overflow-hidden group`}
-            >
-              <div className="w-1 bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.8)]" />
-              <div className="flex-1 p-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0">
-                    <div className="h-8 w-8 rounded-md bg-indigo-500/20 flex items-center justify-center border border-indigo-400/20">
-                      <Sparkles className="h-4 w-4 text-indigo-400" />
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-black text-indigo-400 uppercase tracking-tighter">
-                      AI Scan Complete
-                    </p>
-                    <p className={`text-xs font-medium truncate ${riskColor}`}>
-                      {result.riskLevel} · {result.incidentsOnRoute} hazard(s) on route.
-                    </p>
-                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                      {result.explanation}
-                    </p>
-                    {result.alternatives.length > 0 && (
-                      <p className="text-[10px] text-indigo-300 mt-0.5">
-                        {result.alternatives.length} safer alternative(s) available.
-                      </p>
+      const theme = {
+        SAFE: { border: "border-emerald-500/30", text: "text-emerald-400", accent: "bg-emerald-500" },
+        WARNING: { border: "border-amber-500/30", text: "text-amber-400", accent: "bg-amber-500" },
+        DANGER: { border: "border-rose-500/30", text: "text-rose-400", accent: "bg-rose-500" }
+      }[result.riskLevel as "SAFE" | "WARNING" | "DANGER"] || { border: "border-indigo-500/30", text: "text-indigo-400", accent: "bg-indigo-500";
+
+      toast.custom(
+        (t) => (
+          <div
+            className={`${
+              t.visible ? "animate-enter" : "animate-leave"
+            } max-w-sm w-full bg-slate-900/95 border ${theme.border} shadow-2xl 
+              rounded-xl pointer-events-auto flex backdrop-blur-md overflow-hidden`}
+          >
+            <div className={`w-1.5 ${theme.accent}`} />
+            
+            <div className="flex-1 p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-xs font-black tracking-widest uppercase ${theme.text}`}>
+                      {isRouteClear ? "Route Clear" : `${result.riskLevel} Risk Verified`}
+                    </span>
+                    {!isRouteClear && (
+                      <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-white/5 text-slate-400">
+                        Score: {result.riskScore.toFixed(0)}
+                      </span>
                     )}
                   </div>
+
+                  <p className="text-sm font-medium text-slate-100 leading-tight">
+                    {isRouteClear 
+                      ? "No threats detected. Proceed along your original itinerary." 
+                      : `${result.incidentsOnRoute} dynamic hazard(s) located near path coordinates.`
+                    }
+                  </p>
+
+                  {result.explanation && !isRouteClear && (
+                    <p className="text-xs text-slate-400 mt-1.5 border-l-2 border-slate-800 pl-2 py-0.5">
+                      {result.explanation}
+                    </p>
+                  )}
+
+                  {result.alternatives.length > 0 && (
+                    <p className="text-xs font-semibold text-indigo-400 mt-2 flex items-center gap-1">
+                      <BrainCircuit size={13} /> {result.alternatives.length} safer bypass options calculated.
+                    </p>
+                  )}
                 </div>
               </div>
+            </div>
+
+            <div className="flex flex-col border-l border-slate-800/80 w-24 divide-y divide-slate-800/60">
+              {!isRouteClear && (
+                <button
+                  onClick={() => {
+                    getData();
+                    toast.dismiss(t.id);
+                  }}
+                  className="flex-1 text-xs font-bold text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 active:bg-indigo-500/20 transition-colors px-2 py-3 text-center"
+                >
+                  Reroute
+                </button>
+              )}
               <button
-                onClick={() => {
-                  getData();
-                  toast.dismiss(t.id);
-                }}
-          className="flex-shrink-0 self-stretch flex items-center whitespace-nowrap px-3 border-l border-slate-800 text-[10px] font-bold uppercase 
-             text-slate-500 hover:text-white hover:bg-white/5 transition-colors"
+                onClick={() => toast.dismiss(t.id)}
+                className="flex-1 text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-colors px-2 py-3 text-center"
               >
-                Safe Path
+                Dismiss
               </button>
             </div>
-          ),
-          { duration: 60000, position: "top-center" }
-        );
-      }
+          </div>
+        ),
+        { duration: isRouteClear ? 5000 : 10000, position: "top-center" }
+      );
     }
 
     setIsLoading(false);
@@ -282,7 +251,7 @@ export default function MapPage(): React.JSX.Element {
     runCheck()
   }
 
-  // 3. LOGIC: Handle Search API (Debounced)
+  // Handle Search API (Debounced)
   useEffect(() => {
     if (!locationSearched.name || locationSearched.lat !== 0) {
       if (!locationSearched.name) setDataSuggested([]);
@@ -299,7 +268,7 @@ export default function MapPage(): React.JSX.Element {
     return () => clearTimeout(timer);
   }, [locationSearched.name]);
 
-  // 4. LOGIC: Fly to searched location
+  // Fly to searched location
   useEffect(() => {
     if (locationSearched.lat !== 0 && locationSearched.lon !== 0) {
       mapRef.current?.flyTo({
@@ -371,7 +340,6 @@ export default function MapPage(): React.JSX.Element {
       {/* ── SafeMaster: Route Risk Panel ─────────────────────────────────────── */}
       {safeRouteResult && (
         <div className="absolute top-24 left-6 z-[999] max-w-xs w-72 bg-slate-900/95 border border-indigo-500/30 rounded-2xl shadow-2xl backdrop-blur-xl pointer-events-auto overflow-hidden">
-          {/* Risk level header */}
           <div
             className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest flex items-center gap-2
               ${safeRouteResult.riskLevel === "SAFE"
@@ -384,7 +352,6 @@ export default function MapPage(): React.JSX.Element {
             {safeRouteResult.riskLevel} · Score {safeRouteResult.riskScore.toFixed(0)}/100
           </div>
 
-          {/* Best route */}
           <div
             className={`px-4 py-2.5 border-b border-slate-800 cursor-pointer transition-colors
               ${selectedAltIndex === null ? "bg-indigo-600/10" : "hover:bg-slate-800/40"}`}
@@ -406,7 +373,6 @@ export default function MapPage(): React.JSX.Element {
             )}
           </div>
 
-          {/* Alternatives */}
           {safeRouteResult.alternatives.length > 0 && (
             <div className="px-4 pt-2 pb-1">
               <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1.5">
@@ -540,10 +506,6 @@ export default function MapPage(): React.JSX.Element {
             </MapMarker>
           )}
 
-          {/*
-            Pass safeRouteResult + selectedAltIndex to MapCurrent via Outlet context
-            so it can render the correct route geometry (best or chosen alternative).
-          */}
           <Outlet context={{ data, placesToAvoid, coords, locationSearched, draggableMarker, runCheck, safeRouteResult, selectedAltIndex }} />
           
           <div className="absolute bottom-24 right-10">
