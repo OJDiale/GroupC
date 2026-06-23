@@ -51,7 +51,7 @@ const EMPTY_FILTERS: FilterState = {
 };
 
 const CONFIG = {
-  API_BASE_URL: (window as any).CONFIG?.API_BASE_URL || 'http://localhost:5000',
+  API_BASE_URL: (window as any).CONFIG?.API_BASE_URL || 'https://mapper-backend-brkn.onrender.com',
 };
 
 const DRIVERS_API = `${CONFIG.API_BASE_URL}/api/users/drivers`;
