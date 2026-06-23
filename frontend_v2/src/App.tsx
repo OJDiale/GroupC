@@ -16,9 +16,9 @@ import HistoralEvents from "./pages/HistoricalEvents.tsx"
 import CurrentEventMap from "./pages/CurrentEventMap.tsx"
 import AdminPage from "./pages/admin._pages/Admin.tsx"
 import AdminLocationsPage from "./pages/admin._pages/AdminLocationsPage.tsx"
-import AdminIncidentsPage from './pages/admin._pages/AdminIncidentsPage.tsx'
+// import AdminIncidentsPage from './pages/admin._pages/AdminIncidentsPage.tsx'
 import AdminReportsPage from './pages/admin._pages/AdminReportsPage.tsx'
-import AdminSavedRoutesPage from './pages/admin._pages/AdminSavedRoutesPage.tsx'
+// import AdminSavedRoutesPage from './pages/admin._pages/AdminSavedRoutesPage.tsx'
 import AdminUsersPage from './pages/admin._pages/AdminUsersPage.tsx'
 import ContactPage from './pages/ContactPage.tsx'
 import NotFoundPage from './pages/NotFoundPage.tsx'
@@ -104,21 +104,21 @@ function App() {
           loader={AdminLoader}
           element={<AdminLocationsPage/>}
         />
-        <Route
+        {/* <Route
           path ="incidents.html"
           loader={AdminLoader}
           element={<AdminIncidentsPage/>}
-        />
+        /> */}
          <Route
           path ="reports.html"
           loader={AdminLoader}
           element={<AdminReportsPage/>}
         />
-        <Route
+        {/* <Route
           path ="saved_routes.html"
           loader={AdminLoader}
           element={<AdminSavedRoutesPage/>}
-        />
+        /> */}
         <Route
           path ="users.html"
           loader={AdminLoader}
