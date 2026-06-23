@@ -16,7 +16,7 @@ const Admin: React.FC = () => {
   // Only pages that are actually built and wired up are listed here.
   const navItems: NavItem[] = [
     {
-      href: '/admin_users',
+      href: '/users.html',
       icon: '👤',
       label: 'Driver Management',
       sub: 'Reset passwords & remove drivers',
@@ -28,7 +28,7 @@ const Admin: React.FC = () => {
       sub: 'View logged user destinations',
     },
     {
-      href: '/admin_reports',
+      href: '/reports.html',
       icon: '⚠️',
       label: 'Hazard Reports',
       sub: 'Edit hazard type & remove reports',
