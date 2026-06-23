@@ -311,12 +311,7 @@ useEffect(() => {
       )}
     </div>
   </div>
-  <button
-    onClick={() => { getData(); toast.dismiss(t.id); }}
-    className="w-full py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-[10px] font-bold uppercase text-white transition-colors"
-  >
-    Safe Path
-  </button>
+  
 </div>
           ),
           { duration: 60000, position: "top-center" }
