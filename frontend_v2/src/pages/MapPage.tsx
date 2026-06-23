@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate, useSearchParams } from "react-router";
 import { 
   Mountain, Map as MapIcon, 
@@ -58,80 +58,13 @@ export default function MapPage(): React.JSX.Element {
     lat: (coords[1] as number),
   });
 
-  // Only snap the marker to current GPS position when the user opens report mode.
-  // After that it stays wherever they drag it — GPS updates no longer move it.
-  const reportRef = React.useRef(false);
-  // Edge-scroll: holds the requestAnimationFrame id while the marker is near an edge
-  const edgeScrollRafRef = React.useRef<number | null>(null);
-
-  /** Cancel any running edge-scroll loop. */
-  function stopEdgeScroll() {
-    if (edgeScrollRafRef.current !== null) {
-      cancelAnimationFrame(edgeScrollRafRef.current);
-      edgeScrollRafRef.current = null;
-    }
-  }
-
-  /**
-   * Called continuously while the marker is being dragged.
-   * If the pointer is within EDGE_ZONE px of any side of the map canvas,
-   * the map pans toward that side at a speed proportional to proximity.
-   */
-  function handleMarkerDragEdgeScroll(lngLat: { lng: number; lat: number }) {
-    setDraggableMarker({ lng: lngLat.lng, lat: lngLat.lat });
-
-    const map = mapRef.current;
-    if (!map) return;
-
-    const canvas = map.getCanvas();
-    const rect = canvas.getBoundingClientRect();
-
-    // Convert the marker's current geo-position to screen pixels
-    const point = map.project([lngLat.lng, lngLat.lat]);
-    const px = point.x;
-    const py = point.y;
-
-    const EDGE_ZONE = 80;   // px from edge that triggers scrolling
-    const MAX_SPEED = 12;   // max px per frame the map pans
-
-    function speedFor(dist: number): number {
-      // Linear ramp: full speed at edge, zero at EDGE_ZONE
-      return Math.round(MAX_SPEED * (1 - dist / EDGE_ZONE));
-    }
-
-    let dx = 0;
-    let dy = 0;
-
-    if (px < EDGE_ZONE)                    dx = -speedFor(px);
-    else if (px > rect.width - EDGE_ZONE)  dx =  speedFor(rect.width - px);
-    if (py < EDGE_ZONE)                    dy = -speedFor(py);
-    else if (py > rect.height - EDGE_ZONE) dy =  speedFor(rect.height - py);
-
-    stopEdgeScroll();
-
-    if (dx === 0 && dy === 0) return; // not near any edge
-
-    function scroll() {
-      map!.panBy([dx, dy], { duration: 0, animate: false });
-      edgeScrollRafRef.current = requestAnimationFrame(scroll);
-    }
-    edgeScrollRafRef.current = requestAnimationFrame(scroll);
-  }
   useEffect(() => {
     if (!coords) return;
-    // First time report is activated: snap marker to current location
-    if (report && !reportRef.current) {
-      setDraggableMarker({
-        lng: coords[0] as number,
-        lat: coords[1] as number,
-      });
-      reportRef.current = true;
-    }
-    // Report closed: reset so next open snaps again
-    if (!report) {
-      reportRef.current = false;
-    }
-  }, [coords, report]);
+    setDraggableMarker({
+      lng: coords[0] as number,
+      lat: coords[1] as number,
+    });
+  }, [coords]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams()
@@ -168,13 +101,7 @@ export default function MapPage(): React.JSX.Element {
     );
     return () => navigator.geolocation.clearWatch(id);
   }, []);
-useEffect(() => {
-  if (!coords) return;
-  setDraggableMarker({
-    lng: coords[0] as number,
-    lat: coords[1] as number,
-  });
-}, [coords]);
+
   // ─────────────────────────────────────────────────────────────────────────
   // runCheck — full SafeMaster-style route check + rerouting
   // ─────────────────────────────────────────────────────────────────────────
@@ -248,7 +175,7 @@ useEffect(() => {
           ? "text-yellow-400"
           : "text-red-400";
 
-      if (result.riskLevel === "SAFE" && result.incidentsOnRoute === 0 && newFeatures.length === 0) {
+      if (result.riskLevel === "SAFE" && result.incidentsOnRoute === 0) {
         toast.custom(
           (t) => (
             <div
@@ -538,10 +465,9 @@ useEffect(() => {
               longitude={draggableMarker.lng}
               latitude={draggableMarker.lat}
               onDrag={(lngLat) => {
-                handleMarkerDragEdgeScroll(lngLat);
+                setDraggableMarker({ lng: lngLat.lng, lat: lngLat.lat });
               }}
               onDragEnd={(lngLat) => {
-                stopEdgeScroll();
                 setDraggableMarker({ lng: lngLat.lng, lat: lngLat.lat });
               }}
             >
@@ -632,7 +558,7 @@ useEffect(() => {
         setValue={setUserRole}
       />
 
-      <footer className="absolute bottom-20 left-0 right-0 z-[1000] px-6 pointer-events-none">
+      <footer className="absolute bottom-8 left-0 right-0 z-[1000] px-6 pointer-events-none">
         <div className="max-w-xl mx-auto flex items-center justify-between gap-4 pointer-events-auto bg-slate-900/95 backdrop-blur-2xl p-2.5 rounded-[28px] border border-indigo-500/30 shadow-2xl">
           
           <Button
