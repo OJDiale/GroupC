@@ -161,8 +161,8 @@ export default function MapPage(): React.JSX.Element {
         SAFE: { border: "border-emerald-500/30", text: "text-emerald-400", accent: "bg-emerald-500" },
         WARNING: { border: "border-amber-500/30", text: "text-amber-400", accent: "bg-amber-500" },
         DANGER: { border: "border-rose-500/30", text: "text-rose-400", accent: "bg-rose-500" }
-      }[result.riskLevel as "SAFE" | "WARNING" | "DANGER"] || { border: "border-indigo-500/30", text: "text-indigo-400", accent: "bg-indigo-500";
-
+      
+}[result.riskLevel as "SAFE" | "WARNING" | "DANGER"] || { border: "border-indigo-500/30", text: "text-indigo-400", accent: "bg-indigo-500" };
       toast.custom(
         (t) => (
           <div
