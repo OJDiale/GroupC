@@ -68,7 +68,7 @@ export default function Sigin(){
                         }}
                     />
                  </div>
-              <div className="w-full mb-5">
+              <div className={`w-full mb-5 ${fileName !== "" ? "hidden" : ""}`}>
                     <label 
                         htmlFor="profile_upload" 
                         className="flex items-center gap-3 h-10 px-4 bg-blue-900/30 border border-blue-900/20 rounded-lg cursor-pointer hover:bg-blue-900/50 transition-all active:scale-[0.98]"
