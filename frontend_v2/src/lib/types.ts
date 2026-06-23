@@ -24,11 +24,45 @@ export type DisplayMessageToScreenProps = {
 
 export type GeoCoordinate = [number, number];
 
+// SafeMaster rerouting types (used by MapPage → MapCurrent via Outlet context)
+export type RiskLevel = "SAFE" | "WARNING" | "DANGEROUS";
+
+export interface SafeRouteCandidate {
+  label: string;
+  geojson: {
+    type: "Feature";
+    geometry: { type: "LineString"; coordinates: [number, number][] };
+    properties: Record<string, unknown>;
+  };
+  riskScore: number;
+  riskLevel: RiskLevel;
+  explanation: string;
+  incidentsOnRoute: number;
+  distanceM?: number;
+  durationS?: number;
+}
+
+export interface SafeRouteResult {
+  startLat: number;
+  startLng: number;
+  endLat: number;
+  endLng: number;
+  riskScore: number;
+  riskLevel: RiskLevel;
+  explanation: string;
+  incidentsOnRoute: number;
+  best: SafeRouteCandidate;
+  alternatives: SafeRouteCandidate[];
+}
+
 export interface Distination {
         coords : Array<number> ,
         distination : Array<number>,
         placesToAvoid : Array<[number,number]>,
-        data:Array<GeoCoordinate>
+        data:Array<GeoCoordinate>,
+        // SafeMaster rerouting — passed from MapPage to MapCurrent via Outlet context
+        safeRouteResult: SafeRouteResult | null,
+        selectedAltIndex: number | null,
     }
 
     

@@ -198,17 +198,30 @@ export default function Layer({ geojsonData }: CustomLayerProps) {
         type: "circle",
         source: sourceId,
         paint: {
-          "circle-radius": [
-            "interpolate", ["linear"], ["zoom"],
-            5, 10,
-            10, 25,
-            15, 50
-          ],
-          "circle-color": "#ef4444",
-          "circle-opacity": 0.4,
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#dc2626",
-        },
+        "circle-radius": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          3, 3,
+          8, 6,
+          12, 12,
+          16, 20,
+          18, 28
+        ],
+
+        // Dark red fill
+        "circle-color": "#7f1d1d",
+
+        // Slightly more visible fill
+        "circle-opacity": 0.45,
+
+        // Darker border
+        "circle-stroke-width": 2,
+        "circle-stroke-color": "#450a0a",
+
+        // Border a bit more visible
+        "circle-stroke-opacity": 0.8,
+      },
         layout: {
           visibility: isLayerVisible ? "visible" : "none",
         },
