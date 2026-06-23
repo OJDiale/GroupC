@@ -204,8 +204,8 @@ export default function MapPage(): React.JSX.Element {
               </div>
               <button
                 onClick={() => toast.dismiss(t.id)}
-                className="px-3 border-l border-slate-800 text-[10px] font-bold uppercase 
-                           text-slate-500 hover:text-white hover:bg-white/5 transition-colors"
+                className="flex-shrink-0 self-stretch flex items-center whitespace-nowrap px-3 border-l border-slate-800 text-[10px] font-bold uppercase 
+           text-slate-500 hover:text-white hover:bg-white/5 transition-colors"
               >
                 Hide
               </button>
