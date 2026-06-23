@@ -314,8 +314,8 @@ useEffect(() => {
   
 </div>
           
-          { duration: 60000, position: "top-center" }
-        );
+          // { duration: 60000, position: "top-center" }
+        // );
       }
     }
 
