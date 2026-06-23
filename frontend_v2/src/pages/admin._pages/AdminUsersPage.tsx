@@ -1,8 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, UserPlus, Trash2, Edit2, AlertTriangle, X } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ArrowLeft, Trash2, KeyRound, AlertTriangle, X, Settings } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-interface User {
+/**
+ * BACKEND ENDPOINTS (Express + MySQL) — confirmed against user.routes.js
+ * ------------------------------------------------------------------
+ * GET    /api/users/drivers          (authenticateToken, adminWare)
+ *    -> { success: true, drivers: Driver[] }
+ *    Joins `driver` to `user`; admins never appear in this list.
+ *
+ * PUT    /api/users/:user_id/password  (authenticateToken, adminWare)
+ *    body: { password: string }
+ *    -> { success: true, message?: string }
+ *    Updates ONLY the password column on `user`.
+ *
+ * DELETE /api/users/:user_id          (authenticateToken, adminWare)
+ *    -> { success: true, message?: string }
+ *    Deletes the row from `user`; FK cascades remove the matching
+ *    `driver` row automatically.
+ * ------------------------------------------------------------------
+ */
+
+interface Driver {
+  driver_id: number;
   user_id: number;
   firstname: string;
   lastname: string;
@@ -12,254 +32,286 @@ interface User {
   last_login: string | null;
 }
 
-const CONFIG = {
-  API_BASE_URL: (window as any).CONFIG?.API_BASE_URL || 'https://mapper-backend-brkn.onrender.com',
+interface FilterState {
+  driverId: string;
+  userId: string;
+  username: string;
+  email: string;
+  firstname: string;
+  lastname: string;
+}
+
+const EMPTY_FILTERS: FilterState = {
+  driverId: '',
+  userId: '',
+  username: '',
+  email: '',
+  firstname: '',
+  lastname: '',
 };
 
-const API = `${CONFIG.API_BASE_URL}/api/users`;
+const CONFIG = {
+  API_BASE_URL: (window as any).CONFIG?.API_BASE_URL || 'http://localhost:5000',
+};
 
-export default function UserManagement() {
-  const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  
-  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; targetUser: User | null }>({
+const DRIVERS_API = `${CONFIG.API_BASE_URL}/api/users/drivers`;
+const USERS_API = `${CONFIG.API_BASE_URL}/api/users`;
+
+export default function DriverManagement() {
+  const [allDrivers, setAllDrivers] = useState<Driver[]>([]);
+  const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  const [openPasswordPanel, setOpenPasswordPanel] = useState<{ [userId: number]: boolean }>({});
+  const [passwordInputs, setPasswordInputs] = useState<{ [userId: number]: { password: string; confirm: string } }>({});
+
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; targetDriver: Driver | null }>({
     isOpen: false,
-    targetUser: null,
+    targetDriver: null,
   });
-
-  const [newUser, setNewUser] = useState({
-    firstname: '',
-    lastname: '',
-    username: '',
-    email: '',
-    password: '',
-  });
-
-  const [openPanels, setOpenPanels] = useState<{ [userId: number]: boolean }>({});
-  const [updateInputs, setUpdateInputs] = useState<{ [key: string]: string }>({});
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
     return {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
     };
   };
 
-  const loadUsers = async () => {
+  const loadDrivers = async () => {
     try {
-      const res = await fetch(`${API}/all`, {
+      const res = await fetch(DRIVERS_API, {
         method: 'GET',
         headers: getAuthHeaders(),
       });
       const data = await res.json();
-      if (res.ok) {
-        setAllUsers(data.users || []);
+      if (res.ok && data.success) {
+        setAllDrivers(data.drivers || []);
       } else {
-        toast.error(`Failed to load users: ${data.message || 'Unauthorized Access'}`, { id: 'user-fetch' });
+        toast.error(`Failed to load drivers: ${data.message || data.error || 'Unauthorized access'}`, { id: 'driver-fetch' });
       }
     } catch (e) {
-      toast.error('Could not connect to backend engine.', { id: 'user-fetch' });
-    }
-  };
-
-  const addUser = async () => {
-    const { firstname, lastname, username, email, password } = newUser;
-    if (!firstname || !lastname || !username || !email || !password) {
-      toast.error('Please fill all fields.', { id: 'validation' });
-      return;
-    }
-
-    toast.loading('Creating user account...', { id: 'user-action' });
-
-    try {
-      const res = await fetch(API, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(newUser),
-      });
-      const data = await res.json();
-      
-      if (res.ok) {
-        toast.success('User added successfully!', { id: 'user-action' });
-        setNewUser({
-          firstname: '',
-          lastname: '',
-          username: '',
-          email: '',
-          password: '',
-        });
-        loadUsers();
-      } else {
-        toast.error(`Failed to add user: ${data.message || 'Operation Denied'}`, { id: 'user-action' });
-      }
-    } catch (e) {
-      toast.error('Insert routine failure.', { id: 'user-action' });
-    }
-  };
-
-  const updateField = async (userId: number, field: string) => {
-    const inputKey = `${userId}_${field}`;
-    const value = updateInputs[inputKey];
-
-    if (!value) {
-      toast.error('Please enter a value.', { id: 'validation' });
-      return;
-    }
-
-    toast.loading(`Updating ${field}...`, { id: 'user-action' });
-
-    try {
-      const res = await fetch(`${API}/${userId}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ [field]: value }),
-      });
-      const data = await res.json();
-      
-      if (res.ok) {
-        toast.success('Profile parameter updated!', { id: 'user-action' });
-        setUpdateInputs(prev => ({ ...prev, [inputKey]: '' }));
-        loadUsers();
-      } else {
-        toast.error(`Failed to update: ${data.message || 'Operation Denied'}`, { id: 'user-action' });
-      }
-    } catch (e) {
-      toast.error('Update operational exception.', { id: 'user-action' });
-    }
-  };
-
-  const executeDeleteUser = async () => {
-    if (!deleteModal.targetUser) return;
-    const userId = deleteModal.targetUser.user_id;
-
-    toast.loading('Executing destructive user purge...', { id: 'user-action' });
-
-    try {
-      const res = await fetch(`${API}/${userId}`, { 
-        method: 'DELETE',
-        headers: getAuthHeaders()
-      });
-      const data = await res.json();
-      
-      if (res.ok) {
-        toast.success(data.message || 'User data purged.', { id: 'user-action' });
-        setDeleteModal({ isOpen: false, targetUser: null });
-        loadUsers();
-      } else {
-        toast.error(`Purge rejected: ${data.message || 'Forbidden execution'}`, { id: 'user-action' });
-      }
-    } catch (e) {
-      toast.error('Delete routine failure.', { id: 'user-action' });
+      toast.error('Could not connect to backend.', { id: 'driver-fetch' });
     }
   };
 
   useEffect(() => {
-    loadUsers();
+    loadDrivers();
   }, []);
 
-  useEffect(() => {
-    if (!allUsers) return;
-    setFilteredUsers(
-      allUsers.filter(u => u.username?.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-  }, [allUsers, searchQuery]);
+  // --- Filtering ---
+  const filteredDrivers = useMemo(() => {
+    return allDrivers.filter((d) => {
+      if (filters.driverId && String(d.driver_id) !== filters.driverId) return false;
+      if (filters.userId && String(d.user_id) !== filters.userId) return false;
+      if (filters.username && !d.username?.toLowerCase().includes(filters.username.toLowerCase())) return false;
+      if (filters.email && !d.email?.toLowerCase().includes(filters.email.toLowerCase())) return false;
+      if (filters.firstname && !d.firstname?.toLowerCase().includes(filters.firstname.toLowerCase())) return false;
+      if (filters.lastname && !d.lastname?.toLowerCase().includes(filters.lastname.toLowerCase())) return false;
+      return true;
+    });
+  }, [allDrivers, filters]);
 
-  const toggleUpdatePanel = (userId: number) => {
-    setOpenPanels(prev => ({ ...prev, [userId]: !prev[userId] }));
+  const clearFilters = () => setFilters(EMPTY_FILTERS);
+
+  // --- Password update (the only editable field) ---
+  const togglePasswordPanel = (userId: number) => {
+    setOpenPasswordPanel((prev) => ({ ...prev, [userId]: !prev[userId] }));
+    setPasswordInputs((prev) => ({ ...prev, [userId]: { password: '', confirm: '' } }));
   };
 
-  const handleInputChange = (userId: number, field: string, val: string) => {
-    setUpdateInputs(prev => ({ ...prev, [`${userId}_${field}`]: val }));
+  const handlePasswordInput = (userId: number, field: 'password' | 'confirm', value: string) => {
+    setPasswordInputs((prev) => ({
+      ...prev,
+      [userId]: { ...(prev[userId] || { password: '', confirm: '' }), [field]: value },
+    }));
   };
 
-  const updateFieldsConfig = [
-    { key: 'firstname', label: 'First Name', type: 'text' },
-    { key: 'lastname', label: 'Last Name', type: 'text' },
-    { key: 'username', label: 'Username', type: 'text' },
-    { key: 'email', label: 'Email', type: 'email' },
-    { key: 'password', label: 'Password', type: 'password' },
-  ];
+  const updatePassword = async (userId: number) => {
+    const entry = passwordInputs[userId] || { password: '', confirm: '' };
+
+    if (!entry.password || entry.password.length < 6) {
+      toast.error('Password must be at least 6 characters.', { id: 'validation' });
+      return;
+    }
+    if (entry.password !== entry.confirm) {
+      toast.error('Passwords do not match.', { id: 'validation' });
+      return;
+    }
+
+    toast.loading('Updating password...', { id: 'driver-action' });
+
+    try {
+      const res = await fetch(`${USERS_API}/${userId}/password`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ password: entry.password }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        toast.success('Password updated.', { id: 'driver-action' });
+        setOpenPasswordPanel((prev) => ({ ...prev, [userId]: false }));
+        setPasswordInputs((prev) => ({ ...prev, [userId]: { password: '', confirm: '' } }));
+      } else {
+        toast.error(`Failed to update password: ${data.message || data.error || 'Operation denied'}`, { id: 'driver-action' });
+      }
+    } catch (e) {
+      toast.error('Update request failed.', { id: 'driver-action' });
+    }
+  };
+
+  // --- Delete ---
+  const executeDeleteUser = async () => {
+    if (!deleteModal.targetDriver) return;
+    const userId = deleteModal.targetDriver.user_id;
+
+    toast.loading('Deleting driver account...', { id: 'driver-action' });
+
+    try {
+      const res = await fetch(`${USERS_API}/${userId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        toast.success(data.message || 'Driver account deleted.', { id: 'driver-action' });
+        setDeleteModal({ isOpen: false, targetDriver: null });
+        loadDrivers();
+      } else {
+        toast.error(`Delete rejected: ${data.message || data.error || 'Forbidden'}`, { id: 'driver-action' });
+      }
+    } catch (e) {
+      toast.error('Delete request failed.', { id: 'driver-action' });
+    }
+  };
 
   return (
     <div className="relative min-h-screen bg-[#1a1a1a] font-['Roboto',sans-serif] text-white overflow-x-hidden">
-      <div 
-        className="fixed inset-0 z-0 bg-cover bg-center" 
-        style={{ 
+      <div
+        className="fixed inset-0 z-0 bg-cover bg-center"
+        style={{
           backgroundImage: `url('background-image.jpeg')`,
-          filter: 'brightness(0.52) saturate(0.8)'
-        }} 
+          filter: 'brightness(0.52) saturate(0.8)',
+        }}
       />
 
       <div className="relative z-10 p-9 max-w-[1300px] mx-auto">
         <h1 className="font-['Oswald',sans-serif] text-[2.8rem] font-bold uppercase tracking-[2px] mb-1">
-          User Management
+          Driver Management
         </h1>
-        <a 
-          href="/admin" 
+        <a
+          href="/admin"
           className="inline-block mb-7 text-[#f0c040] text-[0.85rem] font-medium tracking-[1px] no-underline transition-colors duration-200 hover:text-white"
         >
           <ArrowLeft className="inline-block w-4 h-4 mr-1 align-baseline" /> Go Back to Home
         </a>
 
         <h2 className="font-['Oswald',sans-serif] text-[1.35rem] font-semibold uppercase tracking-[1px] mb-3.5">
-          Add User
+          Driver List
         </h2>
-        
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2.5 mb-3.5">
-          <input 
-            type="text" placeholder="First Name" value={newUser.firstname}
-            onChange={e => setNewUser({ ...newUser, firstname: e.target.value })}
-            className="p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none placeholder-[#888]"
+
+        {/* Toolbar */}
+        <div className="flex flex-wrap items-center gap-2.5 mb-3">
+          <input
+            type="text"
+            placeholder="Quick search by username"
+            value={filters.username}
+            onChange={(e) => setFilters((prev) => ({ ...prev, username: e.target.value }))}
+            className="min-w-[260px] p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none placeholder-[#888]"
           />
-          <input 
-            type="text" placeholder="Last Name" value={newUser.lastname}
-            onChange={e => setNewUser({ ...newUser, lastname: e.target.value })}
-            className="p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none placeholder-[#888]"
-          />
-          <input 
-            type="text" placeholder="Username" value={newUser.username}
-            onChange={e => setNewUser({ ...newUser, username: e.target.value })}
-            className="p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none placeholder-[#888]"
-          />
-          <input 
-            type="email" placeholder="Email" value={newUser.email}
-            onChange={e => setNewUser({ ...newUser, email: e.target.value })}
-            className="p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none placeholder-[#888]"
-          />
-          <input 
-            type="password" placeholder="Password" value={newUser.password}
-            onChange={e => setNewUser({ ...newUser, password: e.target.value })}
-            className="p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none placeholder-[#888]"
-          />
+          <button
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className="inline-flex items-center gap-1.5 p-[8px_18px] border border-white/25 font-['Oswald',sans-serif] text-[0.82rem] font-semibold tracking-[1.5px] uppercase cursor-pointer transition-colors duration-200 bg-white/18 text-white hover:bg-white/28"
+          >
+            <Settings className="w-3.5 h-3.5" /> Filter
+          </button>
         </div>
-        <button 
-          onClick={addUser}
-          className="inline-flex items-center gap-1.5 p-[7px_13px] bg-[#b8860b] text-white font-['Oswald',sans-serif] text-[0.75rem] font-semibold tracking-[1.5px] uppercase cursor-pointer hover:bg-[#d4a017] border-none transition-colors"
-        >
-          <UserPlus className="w-3.5 h-3.5" /> Add User
-        </button>
 
-        <hr className="border-none border-t border-white/15 my-7" />
+        {/* Filter Drawer */}
+        {isFilterOpen && (
+          <div className="bg-black/60 border border-white/18 p-[18px_22px] mb-4 w-fit max-w-full text-white">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-2.5">
+              <div>
+                <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
+                  Driver ID
+                </label>
+                <input
+                  type="number"
+                  placeholder="Driver ID"
+                  value={filters.driverId}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, driverId: e.target.value }))}
+                  className="w-full p-[8px_10px] bg-white/92 border-none font-['Roboto'] text-[0.86rem] text-[#333] outline-none"
+                />
+              </div>
+              <div>
+                <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
+                  User ID
+                </label>
+                <input
+                  type="number"
+                  placeholder="User ID"
+                  value={filters.userId}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, userId: e.target.value }))}
+                  className="w-full p-[8px_10px] bg-white/92 border-none font-['Roboto'] text-[0.86rem] text-[#333] outline-none"
+                />
+              </div>
+              <div>
+                <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
+                  Email
+                </label>
+                <input
+                  type="text"
+                  placeholder="Email contains..."
+                  value={filters.email}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, email: e.target.value }))}
+                  className="w-full p-[8px_10px] bg-white/92 border-none font-['Roboto'] text-[0.86rem] text-[#333] outline-none"
+                />
+              </div>
+              <div>
+                <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
+                  First Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="First name contains..."
+                  value={filters.firstname}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, firstname: e.target.value }))}
+                  className="w-full p-[8px_10px] bg-white/92 border-none font-['Roboto'] text-[0.86rem] text-[#333] outline-none"
+                />
+              </div>
+              <div>
+                <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
+                  Last Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="Last name contains..."
+                  value={filters.lastname}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, lastname: e.target.value }))}
+                  className="w-full p-[8px_10px] bg-white/92 border-none font-['Roboto'] text-[0.86rem] text-[#333] outline-none"
+                />
+              </div>
+            </div>
 
-        <h2 className="font-['Oswald',sans-serif] text-[1.35rem] font-semibold uppercase tracking-[1px] mb-3.5">
-          User List
-        </h2>
-        <input 
-          type="text" 
-          placeholder="Search by username" 
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          className="min-w-[260px] mb-3.5 p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none placeholder-[#888]"
-        />
+            <div className="mt-3.5">
+              <button
+                onClick={clearFilters}
+                className="inline-block p-[8px_18px] border border-white/25 font-['Oswald',sans-serif] text-[0.82rem] font-semibold tracking-[1.5px] uppercase cursor-pointer bg-white/18 text-white hover:bg-white/28"
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="w-full overflow-x-auto">
-          {/* Column count adjusted to 8 */}
           <table className="w-full border-collapse bg-black/35 text-left min-w-[800px]">
             <thead>
               <tr className="bg-black/55 text-white font-['Oswald',sans-serif] text-[0.85rem] font-semibold uppercase tracking-[1px]">
-                <th className="p-[10px_12px] border border-white/15">ID</th>
+                <th className="p-[10px_12px] border border-white/15">Driver ID</th>
+                <th className="p-[10px_12px] border border-white/15">User ID</th>
                 <th className="p-[10px_12px] border border-white/15">First Name</th>
                 <th className="p-[10px_12px] border border-white/15">Last Name</th>
                 <th className="p-[10px_12px] border border-white/15">Username</th>
@@ -270,36 +322,37 @@ export default function UserManagement() {
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.length === 0 ? (
+              {filteredDrivers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center text-white/55 italic p-4 text-[0.84rem]">
-                    No users found.
+                  <td colSpan={9} className="text-center text-white/55 italic p-4 text-[0.84rem]">
+                    No drivers found.
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map(u => (
-                  <React.Fragment key={u.user_id}>
+                filteredDrivers.map((d) => (
+                  <React.Fragment key={d.driver_id}>
                     <tr className="hover:bg-white/9 border-b border-white/12 transition-colors odd:bg-transparent even:bg-white/5 text-[0.84rem] align-middle">
-                      <td className="p-[9px_12px] border border-white/12">{u.user_id}</td>
-                      <td className="p-[9px_12px] border border-white/12">{u.firstname}</td>
-                      <td className="p-[9px_12px] border border-white/12">{u.lastname}</td>
-                      <td className="p-[9px_12px] border border-white/12">{u.username}</td>
-                      <td className="p-[9px_12px] border border-white/12">{u.email}</td>
+                      <td className="p-[9px_12px] border border-white/12">{d.driver_id}</td>
+                      <td className="p-[9px_12px] border border-white/12">{d.user_id}</td>
+                      <td className="p-[9px_12px] border border-white/12">{d.firstname}</td>
+                      <td className="p-[9px_12px] border border-white/12">{d.lastname}</td>
+                      <td className="p-[9px_12px] border border-white/12">{d.username}</td>
+                      <td className="p-[9px_12px] border border-white/12">{d.email}</td>
                       <td className="p-[9px_12px] border border-white/12">
-                        {u.date_created ? new Date(u.date_created).toLocaleString() : 'N/A'}
+                        {d.date_created ? new Date(d.date_created).toLocaleString() : 'N/A'}
                       </td>
                       <td className="p-[9px_12px] border border-white/12">
-                        {u.last_login ? new Date(u.last_login).toLocaleString() : 'Never'}
+                        {d.last_login ? new Date(d.last_login).toLocaleString() : 'Never'}
                       </td>
                       <td className="p-[9px_12px] border border-white/12 whitespace-nowrap">
-                        <button 
-                          onClick={() => toggleUpdatePanel(u.user_id)}
+                        <button
+                          onClick={() => togglePasswordPanel(d.user_id)}
                           className="inline-flex items-center gap-1 p-[7px_13px] bg-[#1a5fa8] text-white font-['Oswald'] text-[0.75rem] font-semibold tracking-[1.5px] uppercase cursor-pointer hover:bg-[#2272c3] border-none mr-1 transition-colors"
                         >
-                          <Edit2 className="w-3 h-3" /> Update
+                          <KeyRound className="w-3 h-3" /> Password
                         </button>
-                        <button 
-                          onClick={() => setDeleteModal({ isOpen: true, targetUser: u })}
+                        <button
+                          onClick={() => setDeleteModal({ isOpen: true, targetDriver: d })}
                           className="inline-flex items-center gap-1 p-[7px_13px] bg-[#cc2222] text-white font-['Oswald'] text-[0.75rem] font-semibold tracking-[1.5px] uppercase cursor-pointer hover:bg-[#ee3333] border-none transition-colors"
                         >
                           <Trash2 className="w-3 h-3" /> Delete
@@ -307,33 +360,46 @@ export default function UserManagement() {
                       </td>
                     </tr>
 
-                    {openPanels[u.user_id] && (
+                    {openPasswordPanel[d.user_id] && (
                       <tr className="bg-black/50">
-                        {/* colSpan updated to 8 to maintain horizontal matrix integrity */}
-                        <td colSpan={8} className="p-[14px_16px] border border-white/12 bg-black/50">
+                        <td colSpan={9} className="p-[14px_16px] border border-white/12 bg-black/50">
                           <div className="flex flex-wrap gap-2.5 items-end">
-                            {updateFieldsConfig.map(f => (
-                              <div key={f.key} className="inline-block m-[4px_10px_4px_0]">
-                                <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-0.5 tracking-[1px] uppercase">
-                                  {f.label}
-                                </label>
-                                <div className="flex items-center">
-                                  <input 
-                                    type={f.type} 
-                                    placeholder={`New ${f.label}`}
-                                    value={updateInputs[`${u.user_id}_${f.key}`] || ''}
-                                    onChange={e => handleInputChange(u.user_id, f.key, e.target.value)}
-                                    className="w-[160px] p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none mr-1.5"
-                                  />
-                                  <button 
-                                    onClick={() => updateField(u.user_id, f.key)}
-                                    className="p-[7px_13px] bg-[#1a5fa8] text-white font-['Oswald'] text-[0.75rem] font-semibold tracking-[1.5px] uppercase hover:bg-[#2272c3] border-none cursor-pointer transition-colors"
-                                  >
-                                    Update
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
+                            <div className="inline-block m-[4px_10px_4px_0]">
+                              <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-0.5 tracking-[1px] uppercase">
+                                New Password
+                              </label>
+                              <input
+                                type="password"
+                                placeholder="New password"
+                                value={passwordInputs[d.user_id]?.password || ''}
+                                onChange={(e) => handlePasswordInput(d.user_id, 'password', e.target.value)}
+                                className="w-[180px] p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none"
+                              />
+                            </div>
+                            <div className="inline-block m-[4px_10px_4px_0]">
+                              <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-0.5 tracking-[1px] uppercase">
+                                Confirm Password
+                              </label>
+                              <input
+                                type="password"
+                                placeholder="Confirm password"
+                                value={passwordInputs[d.user_id]?.confirm || ''}
+                                onChange={(e) => handlePasswordInput(d.user_id, 'confirm', e.target.value)}
+                                className="w-[180px] p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none"
+                              />
+                            </div>
+                            <button
+                              onClick={() => updatePassword(d.user_id)}
+                              className="p-[9px_16px] bg-[#1a5fa8] text-white font-['Oswald'] text-[0.75rem] font-semibold tracking-[1.5px] uppercase hover:bg-[#2272c3] border-none cursor-pointer transition-colors"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => togglePasswordPanel(d.user_id)}
+                              className="p-[9px_16px] bg-transparent text-white/70 hover:text-white font-['Oswald'] text-[0.75rem] font-semibold tracking-[1.5px] uppercase border border-white/25 cursor-pointer transition-colors"
+                            >
+                              Cancel
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -346,34 +412,36 @@ export default function UserManagement() {
         </div>
       </div>
 
-      {/* --- Overlay Modal Dialog Component --- */}
-      {deleteModal.isOpen && deleteModal.targetUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+      {/* Delete Confirmation Modal */}
+      {deleteModal.isOpen && deleteModal.targetDriver && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="relative w-full max-w-md bg-[#222] border border-white/10 p-6 shadow-2xl text-left">
-            <button 
-              onClick={() => setDeleteModal({ isOpen: false, targetUser: null })}
+            <button
+              onClick={() => setDeleteModal({ isOpen: false, targetDriver: null })}
               className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
-            
+
             <div className="flex items-start gap-4 mb-4">
               <div className="p-3 bg-red-950 text-red-400 rounded-lg shrink-0 border border-red-900/50">
                 <AlertTriangle className="w-6 h-6" />
               </div>
               <div>
                 <h3 className="font-['Oswald',sans-serif] text-xl font-semibold uppercase tracking-[1px] text-white">
-                  Confirm Destruction
+                  Confirm Deletion
                 </h3>
                 <p className="text-sm text-white/60 mt-1 leading-relaxed">
-                  Are you absolutely sure you want to permanently delete user account <span className="text-[#f0c040] font-mono font-bold">@{deleteModal.targetUser.username}</span>? This action cannot be undone.
+                  Are you sure you want to permanently delete driver account{' '}
+                  <span className="text-[#f0c040] font-mono font-bold">@{deleteModal.targetDriver.username}</span>?
+                  This action cannot be undone.
                 </p>
               </div>
             </div>
 
             <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-white/5">
               <button
-                onClick={() => setDeleteModal({ isOpen: false, targetUser: null })}
+                onClick={() => setDeleteModal({ isOpen: false, targetDriver: null })}
                 className="px-4 py-2 bg-transparent text-white/70 hover:text-white text-xs tracking-[1px] font-semibold uppercase transition-colors"
               >
                 Cancel
@@ -382,7 +450,7 @@ export default function UserManagement() {
                 onClick={executeDeleteUser}
                 className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#cc2222] hover:bg-[#ee3333] text-white font-['Oswald'] text-xs font-semibold tracking-[1.5px] uppercase transition-colors shadow-lg shadow-red-900/20"
               >
-                <Trash2 className="w-3.5 h-3.5" /> Purge Account
+                <Trash2 className="w-3.5 h-3.5" /> Delete Driver
               </button>
             </div>
           </div>
