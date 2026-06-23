@@ -185,7 +185,7 @@ export default function MapPage(): React.JSX.Element {
                 rounded-lg pointer-events-auto flex backdrop-blur-md overflow-hidden group`}
             >
               <div className="w-1 bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.8)]" />
-              <div className="flex-1 p-3">
+              <div className="flex-1 p-2">
                 <div className="flex items-center gap-3">
                   <div className="flex-shrink-0">
                     <div className="h-8 w-8 rounded-md bg-indigo-500/20 flex items-center justify-center border border-indigo-400/20">
