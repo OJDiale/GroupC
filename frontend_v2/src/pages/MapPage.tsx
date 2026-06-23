@@ -179,9 +179,9 @@ export default function MapPage(): React.JSX.Element {
         toast.custom(
           (t) => (
             <div
-              className={`${
+              className={`p-5 ${
                 t.visible ? "animate-enter" : "animate-leave"
-              } max-w-xs w-full bg-slate-900/95 border border-indigo-500/40 shadow-xl 
+              } max-w-xs w-full bg-slate-900/95  border border-indigo-500/40 shadow-xl 
                 rounded-lg pointer-events-auto flex backdrop-blur-md overflow-hidden group`}
             >
               <div className="w-1 bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.8)]" />
@@ -217,7 +217,7 @@ export default function MapPage(): React.JSX.Element {
         toast.custom(
           (t) => (
             <div
-              className={`${
+              className={`p-5 ${
                 t.visible ? "animate-enter" : "animate-leave"
               } max-w-xs w-full bg-slate-900/95 border border-indigo-500/40 shadow-xl 
                 rounded-lg pointer-events-auto flex backdrop-blur-md overflow-hidden group`}
