@@ -3,22 +3,32 @@
 import { Outlet, NavLink } from "react-router";
 import { CircleUserRound, Github, Linkedin, Twitter, Menu, X } from 'lucide-react';
 import logo from "../assets/logo2.png";
-import { getDocs, collection } from "firebase/firestore";
-import { db } from "../database/config.js";
 import { useEffect, useState } from "react";
 import { userData } from "../database/auth.js";
 
 export default function HomePage() {
-  const isLoggedIn = Boolean(localStorage.getItem("isLoggedIn"));
+  const isLoggedIn = localStorage.getItem("token");
   const [user, setUser] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
+    let permissionResult = null;
+
     // 1. Fetch User Data
     async function fetchUserData() {
-      const userDetails = await userData();
-      setUser(userDetails);
+      try {
+        const userDetails = await userData();
+        setUser(userDetails);
+        
+        // FIX: Extract user_id from the immediate variable payload, not the stale state variable
+        if (userDetails && userDetails.user_id) {
+          localStorage.setItem("userId", JSON.stringify(userDetails.user_id));
+        }
+      } catch (err) {
+        console.error("Failed to sync homepage identity:", err);
+      }
     }
+    
     if (isLoggedIn) fetchUserData();
 
     // 2. Geolocation Permission Logic
@@ -29,14 +39,17 @@ export default function HomePage() {
     };
 
     navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+      permissionResult = result;
       handlePermission(result.state);
       result.onchange = () => handlePermission(result.state);
     });
 
-    // 3. Firestore Example (Keep logic inside useEffect to prevent multiple calls)
-    getDocs(collection(db, "users")).then((querySnapshot) => {
-      querySnapshot.forEach((doc) => console.log(doc.id, " => ", doc.data()));
-    });
+    // FIX: Provide a cleanup routine to untrack state updates if the page unmounts
+    return () => {
+      if (permissionResult) {
+        permissionResult.onchange = null;
+      }
+    };
   }, [isLoggedIn]);
 
   function getLocation() {
@@ -48,7 +61,7 @@ export default function HomePage() {
     );
   }
 
-  const activeLink = ({ isActive }) => 
+  const activeLink = ({ isActive }: { isActive: boolean }) => 
     isActive ? "bg-white text-blue-600 px-3 py-1 rounded-full font-bold transition-all" : "px-3 py-1 hover:text-blue-200 transition-colors";
 
   const currentYear = new Date().getFullYear();
@@ -85,18 +98,27 @@ export default function HomePage() {
         </nav>
 
         {/* Mobile Menu Button */}
-        <button className="md:hidden p-2" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+        <button className="md:hidden p-2 text-white" onClick={() => setIsMenuOpen(!isMenuOpen)}>
           {isMenuOpen ? <X /> : <Menu />}
         </button>
       </header>
 
       {/* Mobile Nav Overlay */}
       {isMenuOpen && (
-        <div className="fixed inset-0 z-40 bg-blue-600 text-white flex flex-col items-center justify-center gap-8 text-xl md:hidden">
+        <div className="fixed inset-0 z-40 bg-blue-600 text-white flex flex-col items-center justify-center gap-8 text-xl md:hidden animate-in fade-in duration-200">
           <NavLink to="/" onClick={() => setIsMenuOpen(false)}>Home</NavLink>
           <NavLink to="about" onClick={() => setIsMenuOpen(false)}>About</NavLink>
           <NavLink to="map" onClick={() => setIsMenuOpen(false)}>Map</NavLink>
-          <NavLink to="login" onClick={() => setIsMenuOpen(false)}>Login</NavLink>
+          
+          {/* FIX: Mobile overlay now evaluates token state properly */}
+          {!isLoggedIn ? (
+            <NavLink to="login" onClick={() => setIsMenuOpen(false)}>Login</NavLink>
+          ) : (
+            <NavLink to="account" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2">
+              <CircleUserRound size={22} />
+              <span>{user?.username || "Profile"}</span>
+            </NavLink>
+          )}
         </div>
       )}
 
@@ -170,7 +192,6 @@ export default function HomePage() {
     </div>
   );
 }
-
 //orginal code
 // import { Outlet, NavLink } from "react-router"
 // import { CircleUserRound, Github, Linkedin, Twitter } from 'lucide-react';
