@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router';
+import { ArrowLeft } from 'lucide-react';
 
 // Define the interface for our navigation links
 interface NavItem {
@@ -33,6 +34,18 @@ const Admin: React.FC = () => {
       label: 'Hazard Reports',
       sub: 'Edit hazard type & remove reports',
     },
+    {
+      href: '/admin_staff',
+      icon: '🧑‍💼',
+      label: 'Staff Accounts',
+      sub: 'Create Traffic Authority, Security Agency & Analyst logins',
+    },
+    {
+      href: '/admin_safety_report',
+      icon: '📊',
+      label: 'Safety Report',
+      sub: 'System-wide hazard & trip statistics',
+    },
   ];
 
   const handleLogout = (e: React.FormEvent<HTMLFormElement>) => {
@@ -51,6 +64,12 @@ const Admin: React.FC = () => {
       {/* Main Content Container */}
       <div className="relative z-10 max-w-[900px] mx-auto px-16 py-[60px] max-sm:px-6">
         <header>
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 mb-4 text-white/50 text-[0.8rem] font-medium tracking-[1px] no-underline transition-colors duration-200 hover:text-white"
+          >
+            <ArrowLeft size={14} /> Back to site
+          </Link>
           <div className="font-['Oswald'] text-[0.8rem] tracking-[2px] text-[#f0c040] uppercase mb-[2px]">
             Group C
           </div>
