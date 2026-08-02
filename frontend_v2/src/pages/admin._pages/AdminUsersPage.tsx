@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Trash2, KeyRound, AlertTriangle, X, Settings } from 'lucide-react';
+import { Trash2, KeyRound, AlertTriangle, X, Filter as FilterIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
+import AdminShell from '@/components/AdminShell';
 
 /**
  * BACKEND ENDPOINTS (Express + MySQL) — confirmed against user.routes.js
@@ -51,11 +52,14 @@ const EMPTY_FILTERS: FilterState = {
 };
 
 const CONFIG = {
-  API_BASE_URL: (window as any).CONFIG?.API_BASE_URL || 'https://mapper-backend-brkn.onrender.com',
+  API_BASE_URL: (window as unknown as { CONFIG?: { API_BASE_URL?: string } }).CONFIG?.API_BASE_URL || 'https://mapper-backend-brkn.onrender.com',
 };
 
 const DRIVERS_API = `${CONFIG.API_BASE_URL}/api/users/drivers`;
 const USERS_API = `${CONFIG.API_BASE_URL}/api/users`;
+
+const inputClass = "w-full h-10 px-3 bg-white border border-brand-border rounded-lg text-sm text-brand-ink placeholder:text-brand-muted outline-none focus:ring-2 focus:ring-brand-blue/40 focus:border-brand-blue";
+const labelClass = "text-[11px] font-bold uppercase tracking-wide text-brand-muted block mb-1";
 
 export default function DriverManagement() {
   const [allDrivers, setAllDrivers] = useState<Driver[]>([]);
@@ -188,215 +192,147 @@ export default function DriverManagement() {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#1a1a1a] font-['Roboto',sans-serif] text-white overflow-x-hidden">
-      <div
-        className="fixed inset-0 z-0 bg-cover bg-center"
-        style={{
-          backgroundImage: `url('background-image.jpeg')`,
-          filter: 'brightness(0.52) saturate(0.8)',
-        }}
+    <AdminShell
+      title="Driver Management"
+      subtitle="Reset passwords and remove driver accounts."
+      headerActions={
+        <button
+          onClick={() => setIsFilterOpen(!isFilterOpen)}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
+        >
+          <FilterIcon size={14} /> Filter
+        </button>
+      }
+    >
+      <input
+        type="text"
+        placeholder="Quick search by username"
+        value={filters.username}
+        onChange={(e) => setFilters((prev) => ({ ...prev, username: e.target.value }))}
+        className={`${inputClass} max-w-sm`}
       />
 
-      <div className="relative z-10 p-9 max-w-[1300px] mx-auto">
-        <h1 className="font-['Oswald',sans-serif] text-[2.8rem] font-bold uppercase tracking-[2px] mb-1">
-          Driver Management
-        </h1>
-        <a
-          href="/admin"
-          className="inline-block mb-7 text-[#f0c040] text-[0.85rem] font-medium tracking-[1px] no-underline transition-colors duration-200 hover:text-white"
-        >
-          <ArrowLeft className="inline-block w-4 h-4 mr-1 align-baseline" /> Go Back to Home
-        </a>
-
-        <h2 className="font-['Oswald',sans-serif] text-[1.35rem] font-semibold uppercase tracking-[1px] mb-3.5">
-          Driver List
-        </h2>
-
-        {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-2.5 mb-3">
-          <input
-            type="text"
-            placeholder="Quick search by username"
-            value={filters.username}
-            onChange={(e) => setFilters((prev) => ({ ...prev, username: e.target.value }))}
-            className="min-w-[260px] p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none placeholder-[#888]"
-          />
-          <button
-            onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className="inline-flex items-center gap-1.5 p-[8px_18px] border border-white/25 font-['Oswald',sans-serif] text-[0.82rem] font-semibold tracking-[1.5px] uppercase cursor-pointer transition-colors duration-200 bg-white/18 text-white hover:bg-white/28"
-          >
-            <Settings className="w-3.5 h-3.5" /> Filter
-          </button>
-        </div>
-
-        {/* Filter Drawer */}
-        {isFilterOpen && (
-          <div className="bg-black/60 border border-white/18 p-[18px_22px] mb-4 w-fit max-w-full text-white">
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-2.5">
-              <div>
-                <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
-                  Driver ID
-                </label>
-                <input
-                  type="number"
-                  placeholder="Driver ID"
-                  value={filters.driverId}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, driverId: e.target.value }))}
-                  className="w-full p-[8px_10px] bg-white/92 border-none font-['Roboto'] text-[0.86rem] text-[#333] outline-none"
-                />
-              </div>
-              <div>
-                <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
-                  User ID
-                </label>
-                <input
-                  type="number"
-                  placeholder="User ID"
-                  value={filters.userId}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, userId: e.target.value }))}
-                  className="w-full p-[8px_10px] bg-white/92 border-none font-['Roboto'] text-[0.86rem] text-[#333] outline-none"
-                />
-              </div>
-              <div>
-                <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
-                  Email
-                </label>
-                <input
-                  type="text"
-                  placeholder="Email contains..."
-                  value={filters.email}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, email: e.target.value }))}
-                  className="w-full p-[8px_10px] bg-white/92 border-none font-['Roboto'] text-[0.86rem] text-[#333] outline-none"
-                />
-              </div>
-              <div>
-                <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
-                  First Name
-                </label>
-                <input
-                  type="text"
-                  placeholder="First name contains..."
-                  value={filters.firstname}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, firstname: e.target.value }))}
-                  className="w-full p-[8px_10px] bg-white/92 border-none font-['Roboto'] text-[0.86rem] text-[#333] outline-none"
-                />
-              </div>
-              <div>
-                <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
-                  Last Name
-                </label>
-                <input
-                  type="text"
-                  placeholder="Last name contains..."
-                  value={filters.lastname}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, lastname: e.target.value }))}
-                  className="w-full p-[8px_10px] bg-white/92 border-none font-['Roboto'] text-[0.86rem] text-[#333] outline-none"
-                />
-              </div>
+      {isFilterOpen && (
+        <div className="bg-white border border-brand-border rounded-2xl p-5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div>
+              <label className={labelClass}>Driver ID</label>
+              <input type="number" placeholder="Driver ID" value={filters.driverId} onChange={(e) => setFilters((prev) => ({ ...prev, driverId: e.target.value }))} className={inputClass} />
             </div>
-
-            <div className="mt-3.5">
-              <button
-                onClick={clearFilters}
-                className="inline-block p-[8px_18px] border border-white/25 font-['Oswald',sans-serif] text-[0.82rem] font-semibold tracking-[1.5px] uppercase cursor-pointer bg-white/18 text-white hover:bg-white/28"
-              >
-                Clear Filters
-              </button>
+            <div>
+              <label className={labelClass}>User ID</label>
+              <input type="number" placeholder="User ID" value={filters.userId} onChange={(e) => setFilters((prev) => ({ ...prev, userId: e.target.value }))} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Email</label>
+              <input type="text" placeholder="Email contains..." value={filters.email} onChange={(e) => setFilters((prev) => ({ ...prev, email: e.target.value }))} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>First Name</label>
+              <input type="text" placeholder="First name contains..." value={filters.firstname} onChange={(e) => setFilters((prev) => ({ ...prev, firstname: e.target.value }))} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Last Name</label>
+              <input type="text" placeholder="Last name contains..." value={filters.lastname} onChange={(e) => setFilters((prev) => ({ ...prev, lastname: e.target.value }))} className={inputClass} />
             </div>
           </div>
-        )}
+          <button
+            onClick={clearFilters}
+            className="mt-4 px-4 py-2 rounded-lg border border-brand-border text-sm font-semibold text-brand-muted hover:text-brand-ink hover:border-brand-ink"
+          >
+            Clear Filters
+          </button>
+        </div>
+      )}
 
+      <div className="border border-brand-border rounded-2xl overflow-hidden">
         <div className="w-full overflow-x-auto">
-          <table className="w-full border-collapse bg-black/35 text-left min-w-[800px]">
+          <table className="w-full border-collapse text-left min-w-[800px]">
             <thead>
-              <tr className="bg-black/55 text-white font-['Oswald',sans-serif] text-[0.85rem] font-semibold uppercase tracking-[1px]">
-                <th className="p-[10px_12px] border border-white/15">Driver ID</th>
-                <th className="p-[10px_12px] border border-white/15">User ID</th>
-                <th className="p-[10px_12px] border border-white/15">First Name</th>
-                <th className="p-[10px_12px] border border-white/15">Last Name</th>
-                <th className="p-[10px_12px] border border-white/15">Username</th>
-                <th className="p-[10px_12px] border border-white/15">Email</th>
-                <th className="p-[10px_12px] border border-white/15">Created At</th>
-                <th className="p-[10px_12px] border border-white/15">Last Login</th>
-                <th className="p-[10px_12px] border border-white/15">Actions</th>
+              <tr className="bg-brand-bg text-brand-muted text-[11px] font-bold uppercase tracking-wide">
+                <th className="p-3">Driver ID</th>
+                <th className="p-3">User ID</th>
+                <th className="p-3">First Name</th>
+                <th className="p-3">Last Name</th>
+                <th className="p-3">Username</th>
+                <th className="p-3">Email</th>
+                <th className="p-3">Created At</th>
+                <th className="p-3">Last Login</th>
+                <th className="p-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-brand-border">
               {filteredDrivers.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center text-white/55 italic p-4 text-[0.84rem]">
+                  <td colSpan={9} className="text-center text-brand-muted italic p-6 text-sm">
                     No drivers found.
                   </td>
                 </tr>
               ) : (
                 filteredDrivers.map((d) => (
                   <React.Fragment key={d.driver_id}>
-                    <tr className="hover:bg-white/9 border-b border-white/12 transition-colors odd:bg-transparent even:bg-white/5 text-[0.84rem] align-middle">
-                      <td className="p-[9px_12px] border border-white/12">{d.driver_id}</td>
-                      <td className="p-[9px_12px] border border-white/12">{d.user_id}</td>
-                      <td className="p-[9px_12px] border border-white/12">{d.firstname}</td>
-                      <td className="p-[9px_12px] border border-white/12">{d.lastname}</td>
-                      <td className="p-[9px_12px] border border-white/12">{d.username}</td>
-                      <td className="p-[9px_12px] border border-white/12">{d.email}</td>
-                      <td className="p-[9px_12px] border border-white/12">
+                    <tr className="hover:bg-brand-bg/60 transition-colors text-sm align-middle">
+                      <td className="p-3">{d.driver_id}</td>
+                      <td className="p-3">{d.user_id}</td>
+                      <td className="p-3">{d.firstname}</td>
+                      <td className="p-3">{d.lastname}</td>
+                      <td className="p-3">{d.username}</td>
+                      <td className="p-3">{d.email}</td>
+                      <td className="p-3">
                         {d.date_created ? new Date(d.date_created).toLocaleString() : 'N/A'}
                       </td>
-                      <td className="p-[9px_12px] border border-white/12">
+                      <td className="p-3">
                         {d.last_login ? new Date(d.last_login).toLocaleString() : 'Never'}
                       </td>
-                      <td className="p-[9px_12px] border border-white/12 whitespace-nowrap">
+                      <td className="p-3 whitespace-nowrap">
                         <button
                           onClick={() => togglePasswordPanel(d.user_id)}
-                          className="inline-flex items-center gap-1 p-[7px_13px] bg-[#1a5fa8] text-white font-['Oswald'] text-[0.75rem] font-semibold tracking-[1.5px] uppercase cursor-pointer hover:bg-[#2272c3] border-none mr-1 transition-colors"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-brand-blue-soft text-brand-blue text-xs font-bold hover:bg-brand-blue hover:text-white mr-1.5 transition-colors"
                         >
-                          <KeyRound className="w-3 h-3" /> Password
+                          <KeyRound size={12} /> Password
                         </button>
                         <button
                           onClick={() => setDeleteModal({ isOpen: true, targetDriver: d })}
-                          className="inline-flex items-center gap-1 p-[7px_13px] bg-[#cc2222] text-white font-['Oswald'] text-[0.75rem] font-semibold tracking-[1.5px] uppercase cursor-pointer hover:bg-[#ee3333] border-none transition-colors"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-bold hover:bg-red-600 hover:text-white transition-colors"
                         >
-                          <Trash2 className="w-3 h-3" /> Delete
+                          <Trash2 size={12} /> Delete
                         </button>
                       </td>
                     </tr>
 
                     {openPasswordPanel[d.user_id] && (
-                      <tr className="bg-black/50">
-                        <td colSpan={9} className="p-[14px_16px] border border-white/12 bg-black/50">
-                          <div className="flex flex-wrap gap-2.5 items-end">
-                            <div className="inline-block m-[4px_10px_4px_0]">
-                              <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-0.5 tracking-[1px] uppercase">
-                                New Password
-                              </label>
+                      <tr className="bg-brand-bg/60">
+                        <td colSpan={9} className="p-4">
+                          <div className="flex flex-wrap gap-3 items-end">
+                            <div>
+                              <label className={labelClass}>New Password</label>
                               <input
                                 type="password"
                                 placeholder="New password"
                                 value={passwordInputs[d.user_id]?.password || ''}
                                 onChange={(e) => handlePasswordInput(d.user_id, 'password', e.target.value)}
-                                className="w-[180px] p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none"
+                                className={`${inputClass} w-44`}
                               />
                             </div>
-                            <div className="inline-block m-[4px_10px_4px_0]">
-                              <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-0.5 tracking-[1px] uppercase">
-                                Confirm Password
-                              </label>
+                            <div>
+                              <label className={labelClass}>Confirm Password</label>
                               <input
                                 type="password"
                                 placeholder="Confirm password"
                                 value={passwordInputs[d.user_id]?.confirm || ''}
                                 onChange={(e) => handlePasswordInput(d.user_id, 'confirm', e.target.value)}
-                                className="w-[180px] p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none"
+                                className={`${inputClass} w-44`}
                               />
                             </div>
                             <button
                               onClick={() => updatePassword(d.user_id)}
-                              className="p-[9px_16px] bg-[#1a5fa8] text-white font-['Oswald'] text-[0.75rem] font-semibold tracking-[1.5px] uppercase hover:bg-[#2272c3] border-none cursor-pointer transition-colors"
+                              className="h-10 px-4 rounded-lg bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
                             >
                               Save
                             </button>
                             <button
                               onClick={() => togglePasswordPanel(d.user_id)}
-                              className="p-[9px_16px] bg-transparent text-white/70 hover:text-white font-['Oswald'] text-[0.75rem] font-semibold tracking-[1.5px] uppercase border border-white/25 cursor-pointer transition-colors"
+                              className="h-10 px-4 rounded-lg border border-brand-border text-sm font-semibold text-brand-muted hover:text-brand-ink"
                             >
                               Cancel
                             </button>
@@ -414,48 +350,46 @@ export default function DriverManagement() {
 
       {/* Delete Confirmation Modal */}
       {deleteModal.isOpen && deleteModal.targetDriver && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="relative w-full max-w-md bg-[#222] border border-white/10 p-6 shadow-2xl text-left">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="relative w-full max-w-md bg-white rounded-2xl border border-brand-border p-6 shadow-2xl text-left">
             <button
               onClick={() => setDeleteModal({ isOpen: false, targetDriver: null })}
-              className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
+              className="absolute top-4 right-4 text-brand-muted hover:text-brand-ink transition-colors"
             >
-              <X className="w-5 h-5" />
+              <X size={18} />
             </button>
 
             <div className="flex items-start gap-4 mb-4">
-              <div className="p-3 bg-red-950 text-red-400 rounded-lg shrink-0 border border-red-900/50">
-                <AlertTriangle className="w-6 h-6" />
+              <div className="p-3 bg-red-50 text-red-600 rounded-xl shrink-0">
+                <AlertTriangle size={22} />
               </div>
               <div>
-                <h3 className="font-['Oswald',sans-serif] text-xl font-semibold uppercase tracking-[1px] text-white">
-                  Confirm Deletion
-                </h3>
-                <p className="text-sm text-white/60 mt-1 leading-relaxed">
+                <h3 className="text-lg font-bold">Confirm Deletion</h3>
+                <p className="text-sm text-brand-muted mt-1 leading-relaxed">
                   Are you sure you want to permanently delete driver account{' '}
-                  <span className="text-[#f0c040] font-mono font-bold">@{deleteModal.targetDriver.username}</span>?
+                  <span className="text-brand-ink font-mono font-bold">@{deleteModal.targetDriver.username}</span>?
                   This action cannot be undone.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-white/5">
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-brand-border">
               <button
                 onClick={() => setDeleteModal({ isOpen: false, targetDriver: null })}
-                className="px-4 py-2 bg-transparent text-white/70 hover:text-white text-xs tracking-[1px] font-semibold uppercase transition-colors"
+                className="px-4 py-2 text-sm font-semibold text-brand-muted hover:text-brand-ink transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={executeDeleteUser}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#cc2222] hover:bg-[#ee3333] text-white font-['Oswald'] text-xs font-semibold tracking-[1.5px] uppercase transition-colors shadow-lg shadow-red-900/20"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors"
               >
-                <Trash2 className="w-3.5 h-3.5" /> Delete Driver
+                <Trash2 size={14} /> Delete Driver
               </button>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </AdminShell>
   );
 }
