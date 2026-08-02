@@ -407,23 +407,23 @@ export default function MapPage(): React.JSX.Element {
   return (
     <main className="relative h-screen w-full overflow-hidden font-sans antialiased text-slate-100">
   
-      <header className="absolute top-6 left-6 z-[1000] flex items-start gap-2 pointer-events-none">
+      <header className="absolute top-3 left-3 right-3 sm:top-6 sm:left-6 sm:right-6 z-[1000] flex items-start gap-2 pointer-events-none flex-wrap">
         <Link
           to="/"
           title="Back to Mapper home"
-          className="flex items-center justify-center size-11 rounded-2xl bg-slate-900/90 backdrop-blur-2xl shadow-2xl border border-blue-500/30 pointer-events-auto text-slate-300 hover:text-blue-300 transition-colors"
+          className="flex items-center justify-center size-10 sm:size-11 shrink-0 rounded-2xl bg-slate-900/90 backdrop-blur-2xl shadow-2xl border border-blue-500/30 pointer-events-auto text-slate-300 hover:text-blue-300 transition-colors"
         >
-          <Logo size={22} showWordmark={false} ringClassName="text-slate-300" />
+          <Logo size={20} showWordmark={false} ringClassName="text-slate-300" />
         </Link>
 
-        <div className="flex items-center gap-1 bg-slate-900/90 backdrop-blur-2xl p-1.5 rounded-2xl shadow-2xl border border-blue-500/30 pointer-events-auto">
+        <div className="flex flex-wrap items-center gap-1 bg-slate-900/90 backdrop-blur-2xl p-1.5 rounded-2xl shadow-2xl border border-blue-500/30 pointer-events-auto max-w-full">
 
           <div className="flex items-center bg-blue-950/40 rounded-xl px-2 border border-white/10 mr-1">
-            <DialogDemo 
+            <DialogDemo
               locationSearched={locationSearched}
-              setLocationSearched={setLocationSearched} 
+              setLocationSearched={setLocationSearched}
               locationsSuggests={dataSuggested?.map((data, i) => (
-                <div 
+                <div
                   key={i}
                   className="p-3 flex items-center gap-2 hover:bg-blue-900/40 cursor-pointer transition-colors border-b border-slate-800 last:border-0"
                   onClick={async () => {
@@ -450,30 +450,30 @@ export default function MapPage(): React.JSX.Element {
           <button
             onClick={startPickingDestination}
             title="Drop a pin to choose a destination"
-            className={`flex items-center gap-1.5 px-3 h-11 rounded-xl mr-1 border text-[10px] font-bold uppercase tracking-wide transition-all
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 h-10 sm:h-11 rounded-xl mr-1 border text-[10px] font-bold uppercase tracking-wide transition-all
               ${pickingDestination
                 ? "bg-blue-600 border-blue-400 text-white"
                 : "bg-blue-950/40 border-white/10 text-blue-300 hover:bg-blue-900/40"}`}
           >
-            <MapPin size={16} /> <span className="max-lg:hidden">Drop Pin</span>
+            <MapPin size={16} /> <span className="hidden lg:inline">Drop Pin</span>
           </button>
 
           <nav className="flex items-center gap-1">
-            <NavLink to="/map" end title="Current route" className={({ isActive }) => `flex items-center gap-1.5 px-2.5 py-2 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wide ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-blue-300'}`}>
-              <MapIcon size={16} /> <span className="max-lg:hidden">Route</span>
+            <NavLink to="/map" end title="Current route" className={({ isActive }) => `flex items-center gap-1.5 px-2 sm:px-2.5 py-2 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wide ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-blue-300'}`}>
+              <MapIcon size={16} /> <span className="hidden lg:inline">Route</span>
             </NavLink>
-            <NavLink to="historical_events" title="Past hazard reports" className={({ isActive }) => `flex items-center gap-1.5 px-2.5 py-2 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wide ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-blue-300'}`}>
-              <History size={16} /> <span className="max-lg:hidden">History</span>
+            <NavLink to="historical_events" title="Past hazard reports" className={({ isActive }) => `flex items-center gap-1.5 px-2 sm:px-2.5 py-2 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wide ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-blue-300'}`}>
+              <History size={16} /> <span className="hidden lg:inline">History</span>
             </NavLink>
-            <NavLink to="current_events" title="Live hazard reports" className={({ isActive }) => `flex items-center gap-1.5 px-2.5 py-2 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wide ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-blue-300'}`}>
-              <Radio size={16} /> <span className="max-lg:hidden">Live</span>
+            <NavLink to="current_events" title="Live hazard reports" className={({ isActive }) => `flex items-center gap-1.5 px-2 sm:px-2.5 py-2 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wide ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-blue-300'}`}>
+              <Radio size={16} /> <span className="hidden lg:inline">Live</span>
             </NavLink>
             <button
               onClick={() => handleFlyTo(coords as [number, number])}
-              className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wide text-slate-400 hover:text-blue-300 hover:bg-blue-600/20 active:scale-90"
+              className="flex items-center gap-1.5 px-2 sm:px-2.5 py-2 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wide text-slate-400 hover:text-blue-300 hover:bg-blue-600/20 active:scale-90"
               title="Center on my location"
             >
-              <LocateFixed size={16} /> <span className="max-lg:hidden">Me</span>
+              <LocateFixed size={16} /> <span className="hidden lg:inline">Me</span>
             </button>
           </nav>
         </div>
@@ -481,7 +481,7 @@ export default function MapPage(): React.JSX.Element {
 
       {/* ── SafeMaster: Route Risk Panel ─────────────────────────────────────── */}
       {safeRouteResult && (
-        <div className="absolute top-24 left-6 z-[999] max-w-xs w-72 bg-slate-900/95 border border-blue-500/30 rounded-2xl shadow-2xl backdrop-blur-xl pointer-events-auto overflow-hidden">
+        <div className="absolute top-20 left-3 right-3 sm:top-24 sm:left-6 sm:right-auto z-[999] sm:w-72 sm:max-w-xs bg-slate-900/95 border border-blue-500/30 rounded-2xl shadow-2xl backdrop-blur-xl pointer-events-auto overflow-hidden">
           {/* Risk level header */}
           <div
             className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest flex items-center gap-2
@@ -726,32 +726,33 @@ export default function MapPage(): React.JSX.Element {
         setValue={setUserRole}
       />
 
-      <footer className="absolute bottom-8 left-0 right-0 z-[1000] px-6 pointer-events-none flex flex-col items-center gap-2">
+      <footer className="absolute bottom-4 sm:bottom-8 left-0 right-0 z-[1000] px-3 sm:px-6 pointer-events-none flex flex-col items-center gap-2">
         {pickingDestination ? (
-          <div className="pointer-events-auto flex items-center gap-2 bg-slate-900/95 backdrop-blur-2xl px-4 py-1.5 rounded-full border border-blue-500/30 shadow-xl text-[10px] font-bold uppercase tracking-wide text-blue-300">
-            <MapPin size={12} /> Drag the blue pin, then tap it to confirm your destination
+          <div className="pointer-events-auto max-w-full text-center flex items-center gap-2 bg-slate-900/95 backdrop-blur-2xl px-4 py-1.5 rounded-full border border-blue-500/30 shadow-xl text-[9px] sm:text-[10px] font-bold uppercase tracking-wide text-blue-300">
+            <MapPin size={12} className="shrink-0" /> <span>Drag the blue pin, then tap it to confirm your destination</span>
           </div>
         ) : isEmpty ? (
-          <div className="pointer-events-auto flex items-center gap-2 bg-slate-900/95 backdrop-blur-2xl px-4 py-1.5 rounded-full border border-blue-500/30 shadow-xl text-[10px] font-bold uppercase tracking-wide text-blue-300">
-            <Navigation2 size={12} /> Search above or drop a pin, then tap AI SAFE PATH
+          <div className="pointer-events-auto max-w-full text-center flex items-center gap-2 bg-slate-900/95 backdrop-blur-2xl px-4 py-1.5 rounded-full border border-blue-500/30 shadow-xl text-[9px] sm:text-[10px] font-bold uppercase tracking-wide text-blue-300">
+            <Navigation2 size={12} className="shrink-0" /> <span>Search above or drop a pin, then tap AI SAFE PATH</span>
           </div>
         ) : activeTripId && (
           <button
             onClick={endTrip}
             disabled={endingTrip}
-            className="pointer-events-auto flex items-center gap-2 bg-green-600 hover:bg-green-500 disabled:opacity-60 px-4 py-1.5 rounded-full border border-green-400 shadow-xl text-[10px] font-black uppercase tracking-wide text-white transition-colors"
+            className="pointer-events-auto max-w-full text-center flex items-center gap-2 bg-green-600 hover:bg-green-500 disabled:opacity-60 px-4 py-1.5 rounded-full border border-green-400 shadow-xl text-[9px] sm:text-[10px] font-black uppercase tracking-wide text-white transition-colors"
           >
-            <Check size={12} /> {endingTrip ? "Ending trip…" : "Reached your destination? End Trip"}
+            <Check size={12} className="shrink-0" /> <span>{endingTrip ? "Ending trip…" : "Reached your destination? End Trip"}</span>
           </button>
         )}
-        <div className="max-w-xl w-full mx-auto flex items-center justify-between gap-4 pointer-events-auto bg-slate-900/95 backdrop-blur-2xl p-2.5 rounded-[28px] border border-blue-500/30 shadow-2xl">
-          
+        <div className="max-w-xl w-full mx-auto flex items-center justify-between gap-1.5 sm:gap-4 pointer-events-auto bg-slate-900/95 backdrop-blur-2xl p-2 sm:p-2.5 rounded-[28px] border border-blue-500/30 shadow-2xl">
+
           <Button
             onClick={() => {
               setReport(prev => !prev);
               handleFlyTo([coords[0] as number, coords[1] as number]);
             }}
-            className={`h-10 px-5 rounded-xl flex gap-2 items-center border text-[11px] font-bold tracking-wider transition-colors
+            title="Report danger"
+            className={`h-10 px-3 sm:px-5 rounded-xl flex gap-2 items-center border text-[11px] font-bold tracking-wider transition-colors shrink-0
               ${
                 report
                   ? "bg-red-600 border-red-400 text-white"
@@ -759,15 +760,15 @@ export default function MapPage(): React.JSX.Element {
               }`}
           >
             <AlertTriangle size={16} />
-            <span>REPORT DANGER</span>
+            <span className="hidden sm:inline">REPORT DANGER</span>
           </Button>
 
-          <div className="flex items-center gap-2 bg-blue-950/40 px-3 py-1.5 rounded-lg border border-white/5">
-            <Mountain size={14} className="text-blue-400" />
+          <div className="flex items-center gap-1.5 bg-blue-950/40 px-2 sm:px-3 py-1.5 rounded-lg border border-white/5 min-w-0">
+            <Mountain size={14} className="text-blue-400 shrink-0" />
             <select
               value={style}
               onChange={(e) => setStyle(e.target.value as StyleKey)}
-              className="bg-transparent text-white text-[10px] font-bold uppercase outline-none cursor-pointer"
+              className="bg-transparent text-white text-[9px] sm:text-[10px] font-bold uppercase outline-none cursor-pointer min-w-0 max-w-[4.5rem] sm:max-w-none"
             >
               <option value="default">Standard</option>
               <option value="openstreetmap">Detailed</option>
@@ -775,11 +776,12 @@ export default function MapPage(): React.JSX.Element {
             </select>
           </div>
 
-          <Button 
+          <Button
             onClick={() => { subscribe() }}
             disabled={isCalculating || isEmpty}
+            title="AI Safe Path"
             className={`
-              relative h-10 px-5 overflow-hidden
+              relative h-10 px-3 sm:px-5 overflow-hidden shrink-0
               bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900
               text-white border border-blue-500/40
               rounded-xl shadow-[0_0_15px_rgba(79,70,229,0.2)]
@@ -791,12 +793,12 @@ export default function MapPage(): React.JSX.Element {
               {isCalculating ? (
                 <>
                   <BrainCircuit size={18} className="text-blue-300 animate-pulse" />
-                  <span className="text-[10px] font-medium uppercase">Processing...</span>
+                  <span className="hidden sm:inline text-[10px] font-medium uppercase">Processing...</span>
                 </>
               ) : (
                 <>
                   <Sparkles size={18} className="text-blue-400 group-hover:rotate-12 transition-transform" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">AI SAFE PATH</span>
+                  <span className="hidden sm:inline text-[10px] font-black uppercase tracking-widest">AI SAFE PATH</span>
                 </>
               )}
             </div>

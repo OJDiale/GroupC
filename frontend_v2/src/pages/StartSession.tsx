@@ -6,7 +6,7 @@ import RouteDiamondMockup from "../components/RouteDiamondMockup";
 export default function StartSession() {
   const navigate = useNavigate();
   return (
-    <div className="w-screen min-h-screen flex bg-brand-bg text-brand-ink">
+    <div className="w-full min-h-screen flex bg-brand-bg text-brand-ink">
       <div className="max-lg:hidden relative w-1/2 bg-brand-ink overflow-hidden flex items-center justify-center p-12">
         <button
           className="absolute top-6 left-6 z-10 flex items-center gap-2 text-sm font-medium text-white/80 hover:text-white transition-colors"
@@ -26,8 +26,21 @@ export default function StartSession() {
         </p>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-6">
-        <Outlet />
+      <div className="flex-1 flex flex-col min-h-screen">
+        {/* Mobile-only header: the branded left panel is hidden below lg */}
+        <div className="lg:hidden flex items-center justify-between p-4 sm:p-6">
+          <button
+            className="flex items-center gap-2 text-sm font-medium text-brand-muted hover:text-brand-ink transition-colors"
+            onClick={() => navigate("/")}
+          >
+            <ArrowLeft size={16} /> Home
+          </button>
+          <Logo size={26} />
+        </div>
+
+        <div className="flex-1 flex items-center justify-center p-6 pt-0 lg:pt-6">
+          <Outlet />
+        </div>
       </div>
     </div>
   );

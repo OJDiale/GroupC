@@ -147,7 +147,7 @@ const LocationsPage: React.FC = () => {
 
       {isFilterOpen && (
         <div className="bg-white border border-brand-border rounded-2xl p-5">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             <div>
               <label className={labelClass}>User ID</label>
               <input type="number" placeholder="User ID" value={filters.userId} onChange={(e) => setFilters((prev) => ({ ...prev, userId: e.target.value }))} className={inputClass} />
@@ -199,7 +199,7 @@ const LocationsPage: React.FC = () => {
               </div>
 
               <div className="w-full overflow-x-auto">
-                <table className="w-full border-collapse text-left">
+                <table className="w-full border-collapse text-left min-w-[640px]">
                   <thead>
                     <tr className="bg-brand-bg text-brand-muted text-[11px] font-bold uppercase tracking-wide">
                       <th className="p-3">Destination ID</th>

@@ -118,24 +118,24 @@ export default function StaffReportDashboard({
 
   return (
     <div className="min-h-screen bg-brand-bg text-brand-ink">
-      <header className="sticky top-0 z-10 h-16 px-6 flex items-center justify-between bg-brand-bg/90 backdrop-blur-md border-b border-brand-border">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate("/")} className="text-brand-muted hover:text-brand-ink" title="Back to site">
+      <header className="sticky top-0 z-10 h-16 px-3 sm:px-6 flex items-center justify-between bg-brand-bg/90 backdrop-blur-md border-b border-brand-border">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <button onClick={() => navigate("/")} className="text-brand-muted hover:text-brand-ink shrink-0" title="Back to site">
             <ArrowLeft size={18} />
           </button>
-          <Logo size={26} />
+          <Logo size={24} showWordmark={false} />
         </div>
         <button
           onClick={logout}
-          className="flex items-center gap-2 text-sm font-semibold text-brand-muted hover:text-brand-ink"
+          className="flex items-center gap-2 text-sm font-semibold text-brand-muted hover:text-brand-ink shrink-0"
         >
-          <LogOut size={16} /> Log out
+          <LogOut size={16} /> <span className="hidden sm:inline">Log out</span>
         </button>
       </header>
 
-      <main className="max-w-6xl mx-auto p-6 space-y-6">
+      <main className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold">{title}</h1>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold">{title}</h1>
           <p className="text-brand-muted text-sm mt-1">{subtitle}</p>
         </div>
 
