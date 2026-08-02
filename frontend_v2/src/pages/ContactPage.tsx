@@ -10,8 +10,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router";
 import spaceImage from "../assets/space_image.jpg";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 export default function ContactPage(): React.JSX.Element {
+  usePageTitle("Contact");
   const navigate = useNavigate();
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);

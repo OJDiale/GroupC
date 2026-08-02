@@ -4,6 +4,7 @@ import { userData, deleteUserAccount, updateUserInfo } from "../database/auth.js
 import { toast } from "react-hot-toast";
 import { useState, useEffect } from "react";
 import { fetchUserDestinationHistory, formatRelativeTime, type DestinationLog } from "@/lib/utils.js";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 
 
@@ -21,6 +22,7 @@ export async function loader() {
 }
 
 export default function AccountHolder() {
+    usePageTitle("My Account");
     const loaderData = useLoaderData() as any;
     const [data, setData] = useState(loaderData || {})
     const navigate = useNavigate()

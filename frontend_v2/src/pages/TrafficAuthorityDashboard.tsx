@@ -1,4 +1,5 @@
 import StaffReportDashboard from "@/components/StaffReportDashboard";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 const HAZARD_TYPES = [
   { value: "protest", label: "Protest" },
@@ -8,6 +9,7 @@ const HAZARD_TYPES = [
 ];
 
 export default function TrafficAuthorityDashboard() {
+  usePageTitle("Traffic Authority Dashboard");
   return (
     <StaffReportDashboard
       title="Traffic Authority"

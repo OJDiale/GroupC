@@ -11,6 +11,7 @@ import {
   type SafeRouteResult,
 } from "../lib/utils"
 import Spinner from "../components/Spinner"
+import { usePageTitle } from "@/lib/usePageTitle";
 
 // Extended outlet context type — includes SafeMaster rerouting fields
 interface MapCurrentContext extends Distination {
@@ -19,6 +20,7 @@ interface MapCurrentContext extends Distination {
 }
 
 export default function MapCurrent() {
+  usePageTitle("Live Route");
   const [searchParams] = useSearchParams()
 
   const {

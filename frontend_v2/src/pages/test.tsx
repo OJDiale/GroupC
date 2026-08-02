@@ -11,9 +11,11 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router";
 import spaceImage from "../assets/space_image.jpg";
 import t from "../assets/tshiamo.jpg";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 
 export default function AboutPage(): React.JSX.Element {
+  usePageTitle("About");
   const navigate = useNavigate();
 
   return (

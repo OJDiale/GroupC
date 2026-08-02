@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Trash2, KeyRound, AlertTriangle, X, Filter as FilterIcon, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminShell from '@/components/AdminShell';
-import { downloadReportPdf } from '@/lib/pdfReport';
+import { usePageTitle } from '@/lib/usePageTitle';
 
 /**
  * BACKEND ENDPOINTS (Express + MySQL) — confirmed against user.routes.js
@@ -63,6 +63,7 @@ const inputClass = "w-full h-10 px-3 bg-white border border-brand-border rounded
 const labelClass = "text-[11px] font-bold uppercase tracking-wide text-brand-muted block mb-1";
 
 export default function DriverManagement() {
+  usePageTitle("Driver Management");
   const [allDrivers, setAllDrivers] = useState<Driver[]>([]);
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [isFilterOpen, setIsFilterOpen] = useState(false);

@@ -5,8 +5,10 @@ import { newsItems } from "../lib/utils";
 import { type NewsItem } from "../lib/types"
 import { useNavigate } from "react-router";
 import RouteDiamondMockup from "../components/RouteDiamondMockup";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 export default function HomePage(): React.JSX.Element {
+    usePageTitle("Home");
     const [currentIndex, setCurrentIndex] = useState<number>(0)
     const navigate = useNavigate()
 

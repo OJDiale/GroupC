@@ -4,6 +4,7 @@ import { EyeIcon, EyeOff, ImagePlus } from "lucide-react"
 import { addUser } from "../database/auth.js"
 import type { ActionProps } from "@/lib/types"
 import toast from "react-hot-toast"
+import { usePageTitle } from "@/lib/usePageTitle"
 
 // eslint-disable-next-line react-refresh/only-export-components
 export async function action({ request }: ActionProps) {
@@ -29,6 +30,7 @@ export async function action({ request }: ActionProps) {
 }
 
 export default function Sigin() {
+    usePageTitle("Create Account")
     const [showPassword, setShowPassword] = useState<boolean>(false)
     const [hasAgreed, setHasAgreed] = useState<boolean>(false)
     const [fileName, setFileName] = useState<string>("")

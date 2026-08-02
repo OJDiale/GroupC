@@ -17,7 +17,7 @@ const getAuthHeaders = () => {
 /**
  * Registers a new user with the SQLite backend
  */
-export async function addUser(email, password, username, firstName, lastName, userType = "normal") {
+export async function addUser(email, password, username, firstName, lastName, userType = "driver") {
     try {
         // Fixed the string interpolation bug: `${BASE_URL}/api/auth/register`
         const response = await fetch(`${BASE_URL}/api/auth/register`, {

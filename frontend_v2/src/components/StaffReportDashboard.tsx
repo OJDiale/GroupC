@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
-import { LogOut, MapPin, Check, RotateCcw, ArrowLeft } from "lucide-react";
+import { useNavigate, Link } from "react-router";
+import { LogOut, MapPin, Check, RotateCcw, ArrowLeft, ShieldAlert } from "lucide-react";
 import { Map, MapMarker, MarkerContent } from "@/components/ui/map";
 import Logo from "@/components/Logo";
 
@@ -125,12 +125,17 @@ export default function StaffReportDashboard({
           </button>
           <Logo size={24} showWordmark={false} />
         </div>
-        <button
-          onClick={logout}
-          className="flex items-center gap-2 text-sm font-semibold text-brand-muted hover:text-brand-ink shrink-0"
-        >
-          <LogOut size={16} /> <span className="hidden sm:inline">Log out</span>
-        </button>
+        <div className="flex items-center gap-4 shrink-0">
+          <Link to="/hazard-response-report" className="flex items-center gap-2 text-sm font-semibold text-brand-muted hover:text-brand-ink">
+            <ShieldAlert size={16} /> <span className="hidden sm:inline">Response Report</span>
+          </Link>
+          <button
+            onClick={logout}
+            className="flex items-center gap-2 text-sm font-semibold text-brand-muted hover:text-brand-ink"
+          >
+            <LogOut size={16} /> <span className="hidden sm:inline">Log out</span>
+          </button>
+        </div>
       </header>
 
       <main className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">

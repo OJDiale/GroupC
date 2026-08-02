@@ -2,8 +2,10 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { MoveLeft, CornerDownLeft } from "lucide-react";
 import spaceImage from "../assets/space_image.jpg";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 export default function NotFoundPage(): React.JSX.Element {
+    usePageTitle("Page Not Found");
     const navigate = useNavigate();
     const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
 

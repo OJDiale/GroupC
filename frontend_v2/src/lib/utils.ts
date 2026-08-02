@@ -11,45 +11,37 @@ import newImage1 from "../assets/newImage1.jpg"
 import newImage2 from "../assets/newImage2.jpg"
 import newImage3 from "../assets/newImage2.jpg"
 import { redirect } from "react-router"
+import {
+  type GeoCoordinate,
+  type HazardPoint,
+  type RouteScoring,
+  INCIDENT_RADIUS_KM,
+  haversineKm,
+  sampleLine,
+  scoreRoutePath,
+} from "./safemaster"
+
+// Re-exported so existing `from "../lib/utils"` imports elsewhere in the
+// app keep working unchanged — the implementations now live in
+// ./safemaster.ts (kept dependency-free for the SafeMaster parity test).
+export type { GeoCoordinate, HazardPoint };
+export { haversineKm, scoreRoutePath };
 
 // do not modify this code it came with installations
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// Type definition for geographic coordinates: [longitude, latitude]
-export type GeoCoordinate = [number, number];
-
 // ─────────────────────────────────────────────────────────────────────────────
 // SAFEMASTER REROUTING CONSTANTS (ported from route_optimizer.py + geo_service.py)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const OSRM_BASE = "https://router.project-osrm.org/route/v1/driving";
-const INCIDENT_RADIUS_KM = 0.6;
+const OSRM_BASE = import.meta.env.VITE_OSRM_BASE_URL || "https://router.project-osrm.org/route/v1/driving";
 const BYPASS_OFFSET_KM = 2.2;
-const W_INCIDENTS = 0.5;
-const W_AREAS = 0.3;
-const W_ALERTS = 0.2;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GEO HELPERS  (ported from geo_service.py)
 // ─────────────────────────────────────────────────────────────────────────────
-
-/** Great-circle distance in kilometres (haversine). */
-export function haversineKm(
-  lat1: number, lon1: number,
-  lat2: number, lon2: number
-): number {
-  const R = 6371.0;
-  const p1 = (lat1 * Math.PI) / 180;
-  const p2 = (lat2 * Math.PI) / 180;
-  const dp = ((lat2 - lat1) * Math.PI) / 180;
-  const dl = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dp / 2) ** 2 +
-    Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 /** Initial bearing from point 1 → point 2 in degrees (0 = north). */
 function bearingDeg(
@@ -88,18 +80,6 @@ function destinationPoint(
   return [(lon2 * 180) / Math.PI, (lat2 * 180) / Math.PI];
 }
 
-/** Sample up to maxPoints evenly-spaced [lon, lat] pairs from a LineString. */
-function sampleLine(coords: GeoCoordinate[], maxPoints = 40): GeoCoordinate[] {
-  if (!coords.length) return [];
-  if (coords.length <= maxPoints) return coords;
-  const step = Math.max(1, Math.floor(coords.length / maxPoints));
-  const sampled: GeoCoordinate[] = [];
-  for (let i = 0; i < coords.length; i += step) sampled.push(coords[i]);
-  if (sampled[sampled.length - 1] !== coords[coords.length - 1])
-    sampled.push(coords[coords.length - 1]);
-  return sampled;
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // SAFEMASTER ROUTE TYPES
 // ─────────────────────────────────────────────────────────────────────────────
@@ -130,13 +110,6 @@ export interface SafeRouteResult {
   incidentsOnRoute: number;
   best: SafeRouteCandidate;
   alternatives: SafeRouteCandidate[];
-}
-
-/** A lightweight hazard point (lat/lon + optional severity 1–10). */
-export interface HazardPoint {
-  lat: number;
-  lon: number;
-  severity?: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -171,6 +144,20 @@ function parseOsrmRoutes(data: any): OsrmItem[] {
   return features;
 }
 
+const OSRM_MAX_RETRIES = 2;
+const OSRM_RETRY_BACKOFF_MS = [500, 1500];
+
+function osrmRetryDelay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Fetches one OSRM path with retry-with-backoff for transient failures.
+ * Mirrors the backend port's fetchOsrmPath exactly (parallel-port rule) —
+ * still returns [] on final failure, which generateSafeRoute already
+ * handles via its straight-line "Direct corridor (offline routing)"
+ * fallback candidate.
+ */
 async function fetchOsrmPath(
   waypoints: GeoCoordinate[],
   alternatives = false
@@ -181,73 +168,23 @@ async function fetchOsrmPath(
   const url =
     `${OSRM_BASE}/${path}` +
     `?overview=full&geometries=geojson&alternatives=${alt}&steps=false`;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    return parseOsrmRoutes(await res.json());
-  } catch {
-    return [];
-  }
-}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// RISK SCORING  (ported from _score_route_path)
-// ─────────────────────────────────────────────────────────────────────────────
-
-function riskLevel(score: number): "SAFE" | "WARNING" | "DANGEROUS" {
-  if (score >= 70) return "DANGEROUS";
-  if (score >= 40) return "WARNING";
-  return "SAFE";
-}
-
-interface RouteScoring {
-  riskScore: number;
-  riskLevel: "SAFE" | "WARNING" | "DANGEROUS";
-  explanation: string;
-  incidentsOnRoute: number;
-}
-
-/**
- * Scores a route using the hazard list from your backend.
- * Each hazard point is treated like a SafeMaster "incident" —
- * the more hazards within INCIDENT_RADIUS_KM of the sampled path,
- * the higher the risk score.
- */
-function scoreRoutePath(
-  coords: GeoCoordinate[],
-  hazards: HazardPoint[]
-): RouteScoring {
-  const samples = sampleLine(coords);
-  const hitIds = new Set<number>();
-
-  samples.forEach(([lon, lat], _si) => {
-    hazards.forEach((h, hi) => {
-      if (haversineKm(lat, lon, h.lat, h.lon) <= INCIDENT_RADIUS_KM) {
-        hitIds.add(hi);
+  for (let attempt = 0; attempt <= OSRM_MAX_RETRIES; attempt++) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        if (res.status < 500) return [];
+        throw new Error(`OSRM responded ${res.status}`);
       }
-    });
-  });
-
-  const incidentHits = hitIds.size;
-  const incidentComponent = Math.min(100, incidentHits * 12);
-  const score = Math.round(
-    Math.min(100, incidentComponent * W_INCIDENTS + 25 * W_AREAS + 0 * W_ALERTS) * 100
-  ) / 100;
-  const level = riskLevel(score);
-
-  let explanation: string;
-  if (level === "SAFE") {
-    explanation =
-      incidentHits === 0
-        ? "No major hazards detected on this corridor."
-        : `Low-risk corridor — ${incidentHits} minor hazard(s) nearby.`;
-  } else if (level === "WARNING") {
-    explanation = `Moderate risk: ${incidentHits} hazard(s) near this route.`;
-  } else {
-    explanation = `High-risk route — avoid if possible: ${incidentHits} hazard(s) detected on corridor.`;
+      return parseOsrmRoutes(await res.json());
+    } catch (err) {
+      const isLastAttempt = attempt === OSRM_MAX_RETRIES;
+      console.warn(`OSRM routing failed (attempt ${attempt + 1}/${OSRM_MAX_RETRIES + 1}):`, err);
+      if (isLastAttempt) return [];
+      await osrmRetryDelay(OSRM_RETRY_BACKOFF_MS[attempt] ?? 1500);
+    }
   }
-
-  return { riskScore: score, riskLevel: level, explanation, incidentsOnRoute: incidentHits };
+  return [];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -657,19 +594,11 @@ export async function reverseGeocoding(
     return;
   }
 
-  const apiKey = "5e7b1eab70f24694a61d4362ce38f88e";
-
   try {
-    const [startRes, endRes] = await Promise.all([
-      fetch(`https://api.geoapify.com/v1/geocode/reverse?lat=${gpsCoords[1]}&lon=${gpsCoords[0]}&format=json&apiKey=${apiKey}`),
-      fetch(`https://api.geoapify.com/v1/geocode/reverse?lat=${destinationLat}&lon=${destinationLon}&format=json&apiKey=${apiKey}`)
+    const [startPoint, endPoint] = await Promise.all([
+      geocodeReverse(gpsCoords[1], gpsCoords[0]),
+      geocodeReverse(destinationLat, destinationLon),
     ]);
-
-    const startData = await startRes.json();
-    const endData = await endRes.json();
-
-    const startPoint = startData.results?.[0];
-    const endPoint = endData.results?.[0];
 
     if (startPoint && endPoint) {
       setMapPopupInfo([
@@ -732,7 +661,48 @@ export function doesRouteInterceptAvoidZone(
   return shortestDistance <= avoidRadiusInKm;
 }
 
-const BASE_URL = "https://mapper-backend-brkn.onrender.com";
+export const BASE_URL = "https://mapper-backend-brkn.onrender.com";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GEOCODING — proxied through the backend so the Geoapify key never ships
+// in this bundle. Both call sites (reverse + autocomplete) across the app
+// go through these two functions now instead of hitting Geoapify directly.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface GeocodeResult {
+  formatted?: string;
+  street?: string;
+  suburb?: string;
+  city_district?: string;
+  city?: string;
+  county?: string;
+  name?: string;
+  [key: string]: unknown;
+}
+
+export async function geocodeReverse(lat: number, lon: number): Promise<GeocodeResult | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/geocode/reverse?lat=${lat}&lon=${lon}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.success ? data.result : null;
+  } catch (error) {
+    console.error("Reverse geocode failed:", error);
+    return null;
+  }
+}
+
+export async function geocodeAutocomplete(text: string): Promise<any[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/geocode/autocomplete?text=${encodeURIComponent(text)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.features || [];
+  } catch (error) {
+    console.error("Autocomplete geocode failed:", error);
+    return [];
+  }
+}
 
 export interface HazardReportPayload {
   latitude: number;
@@ -810,8 +780,6 @@ export function formatRelativeTime(dbDateString: string): string {
 export async function fetchAndResolveHazardReports(
   setReports?: React.Dispatch<React.SetStateAction<UIHazardReport[]>>
 ): Promise<UIHazardReport[]> {
-  const apiKey = "5e7b1eab70f24694a61d4362ce38f88e";
-
   try {
     const response = await fetch(`${BASE_URL}/api/hazards`, {
       method: "GET",
@@ -851,14 +819,7 @@ export async function fetchAndResolveHazardReports(
     for (let i = 0; i < initialReports.length; i++) {
       const report = initialReports[i];
       try {
-        const geoRes = await fetch(
-          `https://api.geoapify.com/v1/geocode/reverse?lat=${report.lat}&lon=${report.lng}&format=json&apiKey=${apiKey}`
-        );
-
-        if (!geoRes.ok) continue;
-
-        const geoData = await geoRes.json();
-        const point = geoData.results?.[0];
+        const point = await geocodeReverse(report.lat, report.lng);
 
         if (point) {
           const updatedInfo = {
