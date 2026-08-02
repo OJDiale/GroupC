@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { Download, RefreshCw } from 'lucide-react';
 import AdminShell from '@/components/AdminShell';
+import { downloadReportPdf } from '@/lib/pdfReport';
 
 const CONFIG = {
   API_BASE_URL: (window as unknown as { CONFIG?: { API_BASE_URL?: string } }).CONFIG?.API_BASE_URL || 'https://mapper-backend-brkn.onrender.com',
@@ -62,14 +63,30 @@ export default function AdminSafetyReportPage() {
     <AdminShell
       title="Safety Report"
       subtitle={report ? `Generated ${new Date(report.generatedAt).toLocaleString()}` : undefined}
-      headerActions={
-        <button
-          onClick={load}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
+       headerActions={<div className="flex gap-2">
+         <button
+           disabled={!report}
+           onClick={() => report && downloadReportPdf({
+             title: 'Safety Report', filename: 'safety-report.pdf',
+             columns: ['Section', 'Metric', 'Value'],
+             rows: [
+               ...Object.entries(report.totals).map(([metric, value]) => ['Totals', metric, value]),
+               ...report.byType.map((item) => ['By hazard type', item.hazardType, item.count]),
+               ...report.bySource.map((item) => ['By source', item.source, item.count]),
+               ...report.dailyTrend.map((item) => ['Daily trend', item.day, item.count]),
+             ],
+           })}
+           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
+         >
+           <Download size={14} /> Download PDF
+         </button>
+         <button
+           onClick={load}
+           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
         >
-          <RefreshCw size={14} /> Refresh
-        </button>
-      }
+           <RefreshCw size={14} /> Refresh
+         </button>
+       </div>}
     >
       {loading && <p className="text-brand-muted">Generating report…</p>}
       {error && <p className="text-red-600">{error}</p>}

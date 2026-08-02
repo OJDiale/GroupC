@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Trash2, Pencil, Check, X, Filter as FilterIcon } from 'lucide-react';
+import { Trash2, Pencil, Check, X, Download, Filter as FilterIcon } from 'lucide-react';
 import AdminShell from '@/components/AdminShell';
+import { downloadReportPdf } from '@/lib/pdfReport';
 
 /**
  * BACKEND ENDPOINTS (Express + MySQL) — confirmed against hazards.route.js
@@ -166,14 +167,24 @@ export default function HazardReports() {
     <AdminShell
       title="Hazard Reports"
       subtitle="Edit hazard categories or remove reports from the risk database."
-      headerActions={
-        <button
-          onClick={() => setIsFilterOpen(!isFilterOpen)}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
-        >
-          <FilterIcon size={14} /> Filter
-        </button>
-      }
+       headerActions={<div className="flex gap-2">
+         <button
+           onClick={() => downloadReportPdf({
+             title: 'Hazard Reports', filename: 'hazard-reports.pdf',
+             columns: ['ID', 'User ID', 'Username', 'Email', 'Latitude', 'Longitude', 'Hazard type', 'Reported at'],
+             rows: filteredReports.map((report) => [report.id, report.user_id, report.username, report.email, report.latitude, report.longitude, report.hazardType, report.createdAt]),
+           })}
+           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
+         >
+           <Download size={14} /> Download PDF
+         </button>
+         <button
+           onClick={() => setIsFilterOpen(!isFilterOpen)}
+           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
+         >
+           <FilterIcon size={14} /> Filter
+         </button>
+       </div>}
     >
       <input
         type="text"
@@ -185,7 +196,7 @@ export default function HazardReports() {
 
       {isFilterOpen && (
         <div className="bg-white border border-brand-border rounded-2xl p-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div>
               <label className={labelClass}>Hazard ID</label>
               <input type="number" placeholder="Hazard ID" value={filterHazardId} onChange={(e) => setFilterHazardId(e.target.value)} className={inputClass} />
