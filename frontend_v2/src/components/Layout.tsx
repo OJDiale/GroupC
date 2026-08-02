@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { animate, stagger } from "animejs";
 import { userData } from "../database/auth.js";
 import Logo from "./Logo";
+import NotificationCenter from "./NotificationCenter";
 
 const NAV_ITEMS = [
   { key: "home", to: "/", end: true, label: "Home" },
@@ -165,6 +166,7 @@ export default function HomePage() {
             </>
           ) : (
             <>
+              <NotificationCenter />
               <NavLink to="account" className="flex items-center gap-2 text-brand-ink font-medium hover:text-brand-blue transition-colors">
                 <CircleUserRound size={18} />
                 <span>{user?.username || "Profile"}</span>

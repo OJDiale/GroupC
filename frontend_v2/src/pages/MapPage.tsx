@@ -28,6 +28,8 @@ import {
   fetchAndResolveHazardReports,
   logUserDestination,
   endUserTrip,
+  geocodeReverse,
+  geocodeAutocomplete,
   // ── SafeMaster rerouting ──────────────────────────────────────────────────
   generateSafeRoute,
   type SafeRouteResult,
@@ -37,17 +39,18 @@ import Layer from "@/components/AvoidPlaceLayer";
 import { toast } from "react-hot-toast";
 import { SubscriptionDrawer } from "@/components/SubscriptionDrawer";
 import Logo from "@/components/Logo";
+import NotificationCenter from "@/components/NotificationCenter";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 type Role = "ADMIN" | "PREMIUM" | "USER"
 
 export default function MapPage(): React.JSX.Element {
+  usePageTitle("Map");
   const styles = {
     default: undefined,
     openstreetmap: "https://tiles.openfreemap.org/styles/bright",
     openstreetmap3d: "https://tiles.openfreemap.org/styles/liberty",
   };
-
-  const apiKey = "5e7b1eab70f24694a61d4362ce38f88e"; 
 
   type StyleKey = keyof typeof styles;
   const [coords, setCoords] = useState<LngLatLike | undefined>([28.1914, -25.7566]);
@@ -107,6 +110,12 @@ export default function MapPage(): React.JSX.Element {
   // ── SafeMaster rerouting state ─────────────────────────────────────────────
   const [safeRouteResult, setSafeRouteResult] = useState<SafeRouteResult | null>(null);
   const [selectedAltIndex, setSelectedAltIndex] = useState<number | null>(null);
+  // Alert sensitivity: minimum riskScore before a route-check toast fires.
+  // 0 = always notify (matches the original always-on behavior); higher
+  // values quiet down notifications from the background re-route poller
+  // so a driver on a route with only minor, low-scoring hazards nearby
+  // isn't interrupted every 90s.
+  const [alertThreshold, setAlertThreshold] = useState(0);
 
   // 2. LOGIC: Handle Geolocation (Run once on mount)
   useEffect(() => {
@@ -184,8 +193,9 @@ export default function MapPage(): React.JSX.Element {
     setAvoidanceGeoJSON({ type: "FeatureCollection", features: newFeatures });
     setDisPlacesToAvoid(newFeatures.length > 0);
 
-    // 5. Toast notification — SafeMaster style with risk level
-    if (result) {
+    // 5. Toast notification — SafeMaster style with risk level, suppressed
+    // below the driver's chosen alert-sensitivity threshold.
+    if (result && result.riskScore >= alertThreshold) {
       const riskColor =
         result.riskLevel === "SAFE"
           ? "text-green-400"
@@ -300,6 +310,27 @@ export default function MapPage(): React.JSX.Element {
     runCheck()
   }
 
+  // ── Background re-route poller (Phase 6 proposal gap) ───────────────────
+  // While a trip is active, periodically re-run the exact same SafeMaster
+  // check the "AI SAFE PATH" button triggers — same runCheck(), same toast
+  // prompt UI, no new scoring logic (parallel-port rule: nothing to mirror
+  // here since the scoring itself is untouched). Catches hazards reported
+  // by other users after the driver already started their trip. A ref
+  // holds the latest runCheck closure so the interval always sees current
+  // coords/destination without needing to be torn down and rebuilt on
+  // every geolocation update.
+  const runCheckRef = useRef(runCheck);
+  runCheckRef.current = runCheck;
+
+  useEffect(() => {
+    if (!activeTripId) return;
+    const REROUTE_POLL_MS = 90000;
+    const interval = setInterval(() => {
+      runCheckRef.current();
+    }, REROUTE_POLL_MS);
+    return () => clearInterval(interval);
+  }, [activeTripId]);
+
   // 3. LOGIC: Handle Search API (Debounced)
   useEffect(() => {
     if (!locationSearched.name || locationSearched.lat !== 0) {
@@ -308,9 +339,8 @@ export default function MapPage(): React.JSX.Element {
     }
 
     const timer = setTimeout(() => {
-      fetch(`https://api.geoapify.com/v1/geocode/autocomplete?text=${locationSearched.name}&apiKey=5e7b1eab70f24694a61d4362ce38f88e`)
-        .then(res => res.json())
-        .then(result => setDataSuggested(result.features || []))
+      geocodeAutocomplete(locationSearched.name)
+        .then(features => setDataSuggested(features))
         .catch(err => console.error("Search error:", err));
     }, 800);
 
@@ -351,11 +381,8 @@ export default function MapPage(): React.JSX.Element {
   async function resolvePinAddress(lng: number, lat: number) {
     setResolvingPinAddress(true);
     try {
-      const res = await fetch(
-        `https://api.geoapify.com/v1/geocode/reverse?lat=${lat}&lon=${lng}&format=json&apiKey=${apiKey}`
-      );
-      const data = await res.json();
-      const formatted = data.results?.[0]?.formatted;
+      const point = await geocodeReverse(lat, lng);
+      const formatted = point?.formatted;
       setDestinationPinAddress(formatted || `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
     } catch (err) {
       console.error("Failed to resolve dropped pin address:", err);
@@ -373,9 +400,8 @@ export default function MapPage(): React.JSX.Element {
 
     // Log the trip the same way a search-picked destination is logged.
     try {
-      const stLoc = await fetch(`https://api.geoapify.com/v1/geocode/reverse?lat=${coords[1] as number}&lon=${coords[0] as number}&format=json&apiKey=${apiKey}`);
-      const startData = await stLoc.json();
-      const sl = startData.results?.[0]?.formatted;
+      const stPoint = await geocodeReverse(coords[1] as number, coords[0] as number);
+      const sl = stPoint?.formatted;
       const logResult = await logUserDestination({ startLocation: sl, endLocation: name }, localStorage.getItem("token") || "");
       if (logResult.logId) setActiveTripId(logResult.logId);
     } catch (err) {
@@ -416,6 +442,10 @@ export default function MapPage(): React.JSX.Element {
           <Logo size={20} showWordmark={false} ringClassName="text-slate-300" />
         </Link>
 
+        <div className="flex items-center justify-center size-10 sm:size-11 shrink-0 rounded-2xl bg-slate-900/90 backdrop-blur-2xl shadow-2xl border border-blue-500/30 pointer-events-auto">
+          <NotificationCenter dark />
+        </div>
+
         <div className="flex flex-wrap items-center gap-1 bg-slate-900/90 backdrop-blur-2xl p-1.5 rounded-2xl shadow-2xl border border-blue-500/30 pointer-events-auto max-w-full">
 
           <div className="flex items-center bg-blue-950/40 rounded-xl px-2 border border-white/10 mr-1">
@@ -433,9 +463,8 @@ export default function MapPage(): React.JSX.Element {
                       lon: data?.geometry?.coordinates[0],
                       lat: data?.geometry?.coordinates[1]
                     })
-                    const stLoc = await fetch(`https://api.geoapify.com/v1/geocode/reverse?lat=${coords[1] as number}&lon=${coords[0] as number}&format=json&apiKey=${apiKey}`)
-                    const startData = await stLoc.json()
-                    const sl = startData.results?.[0].formatted
+                    const stPoint = await geocodeReverse(coords[1] as number, coords[0] as number)
+                    const sl = stPoint?.formatted
                     const logResult = await logUserDestination({ startLocation: sl, endLocation: destinationName }, localStorage.getItem("token") || "")
                     if (logResult.logId) setActiveTripId(logResult.logId)
                   }}
@@ -457,6 +486,26 @@ export default function MapPage(): React.JSX.Element {
           >
             <MapPin size={16} /> <span className="hidden lg:inline">Drop Pin</span>
           </button>
+
+          <div
+            className="hidden xl:flex items-center gap-2 px-3 h-10 sm:h-11 rounded-xl mr-1 border border-white/10 bg-blue-950/40"
+            title="Minimum risk score before a route-check alert is shown"
+          >
+            <span className="text-[10px] font-bold uppercase tracking-wide text-blue-300 whitespace-nowrap">
+              Alert Sensitivity
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={70}
+              step={5}
+              value={alertThreshold}
+              onChange={(e) => setAlertThreshold(Number(e.target.value))}
+              className="w-20 accent-blue-500"
+              aria-label="Alert sensitivity threshold"
+            />
+            <span className="text-[10px] font-mono text-slate-400 w-6">{alertThreshold}</span>
+          </div>
 
           <nav className="flex items-center gap-1">
             <NavLink to="/map" end title="Current route" className={({ isActive }) => `flex items-center gap-1.5 px-2 sm:px-2.5 py-2 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wide ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-blue-300'}`}>

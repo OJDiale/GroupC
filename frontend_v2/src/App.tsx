@@ -23,6 +23,8 @@ import AdminUsersPage from './pages/admin._pages/AdminUsersPage.tsx'
 import AdminStaffPage from './pages/admin._pages/AdminStaffPage.tsx'
 import AdminSafetyReportPage from './pages/admin._pages/AdminSafetyReportPage.tsx'
 import AiCandidatesPage from './pages/admin._pages/AiCandidatesPage.tsx'
+import AdminTripReportPage from './pages/admin._pages/AdminTripReportPage.tsx'
+import AdminHazardResponseReportPage from './pages/admin._pages/AdminHazardResponseReportPage.tsx'
 import TrafficAuthorityDashboard from './pages/TrafficAuthorityDashboard.tsx'
 import SecurityAgencyDashboard from './pages/SecurityAgencyDashboard.tsx'
 import DataAnalystDashboard from './pages/DataAnalystDashboard.tsx'
@@ -157,6 +159,16 @@ function App() {
           path="ai-candidates"
           loader={roleLoader("admin", "data_analyst")}
           element={<AiCandidatesPage/>}
+        />
+        <Route
+          path="trip-report"
+          loader={roleLoader("admin", "data_analyst")}
+          element={<AdminTripReportPage/>}
+        />
+        <Route
+          path="hazard-response-report"
+          loader={roleLoader("admin", "traffic_authority", "security_agency", "data_analyst")}
+          element={<AdminHazardResponseReportPage/>}
         />
         <Route
           path="traffic-authority"

@@ -1,4 +1,5 @@
 import StaffReportDashboard from "@/components/StaffReportDashboard";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 const HAZARD_TYPES = [
   { value: "hijacking", label: "Hijacking Hotspot" },
@@ -8,6 +9,7 @@ const HAZARD_TYPES = [
 ];
 
 export default function SecurityAgencyDashboard() {
+  usePageTitle("Security Agency Dashboard");
   return (
     <StaffReportDashboard
       title="Security Agency"

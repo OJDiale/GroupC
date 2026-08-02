@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { UserPlus } from 'lucide-react';
 import { registerStaffAccount } from '../../database/auth.js';
 import AdminShell from '@/components/AdminShell';
+import { usePageTitle } from '@/lib/usePageTitle';
 
 const ROLES = [
   { value: 'admin', label: 'System Administrator' },
@@ -14,6 +15,7 @@ const inputClass = "w-full h-11 px-3 bg-white border border-brand-border rounded
 const labelClass = "text-[11px] font-bold uppercase tracking-wide text-brand-muted block mb-1";
 
 export default function AdminStaffPage() {
+  usePageTitle("Staff Accounts");
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', username: '', password: '', role: 'traffic_authority',
   });

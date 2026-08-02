@@ -2,8 +2,10 @@ import { Outlet, useNavigate } from "react-router";
 import { ArrowLeft } from "lucide-react";
 import Logo from "../components/Logo";
 import RouteDiamondMockup from "../components/RouteDiamondMockup";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 export default function StartSession() {
+  usePageTitle("Sign In");
   const navigate = useNavigate();
   return (
     <div className="w-full min-h-screen flex bg-brand-bg text-brand-ink">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Filter as FilterIcon } from 'lucide-react';
 import AdminShell from '@/components/AdminShell';
+import { usePageTitle } from '@/lib/usePageTitle';
 
 /**
  * BACKEND ENDPOINT (Express + MySQL) — confirmed against destination.routes.js
@@ -62,6 +63,7 @@ const inputClass = "w-full h-10 px-3 bg-white border border-brand-border rounded
 const labelClass = "text-[11px] font-bold uppercase tracking-wide text-brand-muted block mb-1";
 
 const LocationsPage: React.FC = () => {
+  usePageTitle("Driver Destinations");
   const [allDestinations, setAllDestinations] = useState<Destination[]>([]);
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -101,6 +103,20 @@ const LocationsPage: React.FC = () => {
   }, []);
 
   const clearFilters = () => setFilters(EMPTY_FILTERS);
+
+  // FK dropdown: derived straight from the destinations already loaded
+  // (each row carries its driver's username/email) rather than a second
+  // API call — shows "username (email)" instead of asking the admin to
+  // know/guess a raw numeric user_id.
+  const userOptions = useMemo(() => {
+    const seen = new Map<number, string>();
+    allDestinations.forEach((dest) => {
+      if (!seen.has(dest.userId)) {
+        seen.set(dest.userId, `${dest.username || 'unknown'} (${dest.email || 'no email'})`);
+      }
+    });
+    return Array.from(seen.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [allDestinations]);
 
   const groupedByUser = useMemo(() => {
     const filtered = allDestinations.filter((dest) => {
@@ -149,8 +165,13 @@ const LocationsPage: React.FC = () => {
         <div className="bg-white border border-brand-border rounded-2xl p-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             <div>
-              <label className={labelClass}>User ID</label>
-              <input type="number" placeholder="User ID" value={filters.userId} onChange={(e) => setFilters((prev) => ({ ...prev, userId: e.target.value }))} className={inputClass} />
+              <label className={labelClass}>Driver</label>
+              <select value={filters.userId} onChange={(e) => setFilters((prev) => ({ ...prev, userId: e.target.value }))} className={inputClass}>
+                <option value="">All drivers</option>
+                {userOptions.map(([id, label]) => (
+                  <option key={id} value={id}>{label}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className={labelClass}>Destination ID</label>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import toast from "react-hot-toast"
 import { type ActionProps } from "@/lib/types"
 import { loginWithEmailAndPassword, checkForAdmin, dashboardPathForRole } from "../database/auth.js"
+import { usePageTitle } from "@/lib/usePageTitle"
 
 //form action
 // eslint-disable-next-line react-refresh/only-export-components
@@ -35,6 +36,7 @@ export async function action({ request }: ActionProps) {
 }
 
 export default function Login() {
+    usePageTitle("Log In")
     //state for toggling between input type of text and password in order to hide and show it check label A below
     const [showPassword, setShowPassword] = useState<boolean>(false)
     //searchParams to grap message send from the redirect("/login?message=this is to set the url with a message") check labels B

@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router';
-import { Users, MapPin, AlertTriangle, UserCog, BarChart3, Sparkles } from 'lucide-react';
+import { Users, MapPin, AlertTriangle, UserCog, BarChart3, Sparkles, ClipboardList, ShieldAlert } from 'lucide-react';
 import AdminShell from '@/components/AdminShell';
+import { usePageTitle } from '@/lib/usePageTitle';
 
 interface NavItem {
   href: string;
@@ -11,6 +12,7 @@ interface NavItem {
 }
 
 const Admin: React.FC = () => {
+  usePageTitle("Admin Dashboard");
   // Only pages that are actually built and wired up are listed here.
   const navItems: NavItem[] = [
     {
@@ -42,6 +44,18 @@ const Admin: React.FC = () => {
       icon: <BarChart3 size={22} />,
       label: 'Safety Report',
       sub: 'System-wide hazard & trip statistics',
+    },
+    {
+      href: '/trip-report',
+      icon: <ClipboardList size={22} />,
+      label: 'Trip Completion Report',
+      sub: 'Every completed trip, with server-computed duration',
+    },
+    {
+      href: '/hazard-response-report',
+      icon: <ShieldAlert size={22} />,
+      label: 'Hazard Response Report',
+      sub: 'Audit trail of who resolved (or reopened) each hazard',
     },
     {
       href: '/ai-candidates',

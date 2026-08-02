@@ -34,6 +34,7 @@ export default function AiCandidatesPanel() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [toast, setToast] = useState<{ msg: string; type: string } | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [minConfidence, setMinConfidence] = useState(0);
 
   const showToast = (msg: string, type = "") => {
     setToast({ msg, type });
@@ -171,19 +172,38 @@ export default function AiCandidatesPanel() {
       </div>
 
       <div>
-        <p className="text-xs font-bold uppercase tracking-wide text-brand-muted mb-3">
-          Pending review {candidates.length > 0 && `(${candidates.length})`}
-        </p>
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-brand-muted">
+            Pending review {candidates.length > 0 && `(${candidates.length})`}
+          </p>
+          <div className="flex items-center gap-2">
+            <label htmlFor="min-confidence" className="text-[11px] font-bold uppercase tracking-wide text-brand-muted">
+              Min. confidence: {minConfidence}%
+            </label>
+            <input
+              id="min-confidence"
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={minConfidence}
+              onChange={(e) => setMinConfidence(Number(e.target.value))}
+              className="w-32 accent-brand-blue"
+            />
+          </div>
+        </div>
 
         {loading ? (
           <p className="text-sm text-brand-muted">Loading…</p>
-        ) : candidates.length === 0 ? (
+        ) : candidates.filter((c) => Number(c.confidence) * 100 >= minConfidence).length === 0 ? (
           <div className="border border-brand-border rounded-2xl p-8 text-center text-sm text-brand-muted bg-white">
-            Nothing pending. Click "Check for new risks" to pull and classify recent news.
+            {candidates.length === 0
+              ? 'Nothing pending. Click "Check for new risks" to pull and classify recent news.'
+              : "No candidates meet that confidence threshold."}
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {candidates.map((c) => {
+            {candidates.filter((c) => Number(c.confidence) * 100 >= minConfidence).map((c) => {
               const confidencePct = Math.round(Number(c.confidence) * 100);
               const hasLocation = c.suggested_lat !== null && c.suggested_lng !== null;
               const lat = hasLocation ? Number(c.suggested_lat) : null;

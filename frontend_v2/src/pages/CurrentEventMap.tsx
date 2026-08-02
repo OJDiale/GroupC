@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useOutletContext } from "react-router";
 import { TriangleAlert, Radio, Loader2, Navigation, ShieldCheck, MapPin, Clock } from "lucide-react";
 import { MapMarker, MarkerContent, MarkerPopup } from "@/components/ui/map";
-import { fetchAndResolveHazardReports,  type UIHazardReport } from "@/lib/utils";
+import { fetchAndResolveHazardReports, geocodeReverse, type UIHazardReport } from "@/lib/utils";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 // --- TYPES ---
 type DraggableMarker = { lat: number; lng: number };
@@ -97,7 +98,7 @@ function HazardBeacon({ report }: { report: UIHazardReport}) {
 
 // --- MAIN PAGE COMPONENT ---
 export default function GlobalThreatMonitor() {
-  const apiKey = "5e7b1eab70f24694a61d4362ce38f88e";
+  usePageTitle("Live Hazard Map");
   const [reports, setReports] = useState<UIHazardReport[]>([]);
   const { draggableMarker }: { draggableMarker: DraggableMarker } = useOutletContext();
   const [pinnedInfo, setPinnedInfo] = useState<PlaceInformation>({ city: "", street: "" });
@@ -120,13 +121,12 @@ export default function GlobalThreatMonitor() {
   useEffect(() => {
     if (!draggableMarker?.lat || !draggableMarker?.lng) return;
     setIsGeocoding(true);
-    fetch(`https://api.geoapify.com/v1/geocode/reverse?lat=${draggableMarker.lat}&lon=${draggableMarker.lng}&format=json&apiKey=${apiKey}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.results?.[0]) {
+    geocodeReverse(draggableMarker.lat, draggableMarker.lng)
+      .then((point) => {
+        if (point) {
           setPinnedInfo({
-            city: data.results[0].city || data.results[0].county || "Analyzing...",
-            street: data.results[0].street || data.results[0].name || "Mapping location...",
+            city: point.city || point.county || "Analyzing...",
+            street: point.street || point.name || "Mapping location...",
           });
         }
       })

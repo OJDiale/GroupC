@@ -1,6 +1,7 @@
 import { MapClusterLayer, MapPopup } from "../components/ui/map";
 import { useEffect, useState } from "react";
 import { fetchAndResolveHazardReports } from "@/lib/utils";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 interface HazardPointProperties {
   id: string;
@@ -16,6 +17,7 @@ const EMPTY_COLLECTION: GeoJSON.FeatureCollection<GeoJSON.Point, HazardPointProp
 };
 
 export default function CrimeMap() {
+  usePageTitle("Historical Events");
   const [selectedPoint, setSelectedPoint] = useState<{
     coordinates: [number, number];
     properties: HazardPointProperties;

@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router";
-import { LogOut, ArrowLeft, RefreshCw, TrendingUp, Sparkles } from "lucide-react";
+import { LogOut, ArrowLeft, RefreshCw, TrendingUp, Sparkles, ArrowUpDown, ClipboardList, ShieldAlert } from "lucide-react";
 import { Map, MapMarker, MarkerContent, MarkerPopup } from "@/components/ui/map";
 import Logo from "@/components/Logo";
+import ReportExportButtons from "@/components/ReportExportButtons";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 const CONFIG = {
   API_BASE_URL: (window as unknown as { CONFIG?: { API_BASE_URL?: string } }).CONFIG?.API_BASE_URL || "https://mapper-backend-brkn.onrender.com",
@@ -28,17 +30,31 @@ const riskColor: Record<Hotspot["riskLevel"], string> = {
 };
 
 export default function DataAnalystDashboard() {
+  usePageTitle("Hotspot Report");
   const navigate = useNavigate();
   const [hotspots, setHotspots] = useState<Hotspot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [generatedAt, setGeneratedAt] = useState<string>("");
+  const [minCount, setMinCount] = useState(0);
+  const [includeResolved, setIncludeResolved] = useState(false);
+  const [sortBy, setSortBy] = useState<"count" | "lat" | "lng">("count");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  const queryString = useMemo(() => {
+    const params = new URLSearchParams();
+    if (minCount > 0) params.set("minCount", String(minCount));
+    if (includeResolved) params.set("includeResolved", "true");
+    params.set("sortBy", sortBy);
+    params.set("sortDir", sortDir);
+    return params.toString();
+  }, [minCount, includeResolved, sortBy, sortDir]);
 
   const load = async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${CONFIG.API_BASE_URL}/api/reports/hotspots`, { headers: getAuthHeaders() });
+      const res = await fetch(`${CONFIG.API_BASE_URL}/api/reports/hotspots?${queryString}`, { headers: getAuthHeaders() });
       const data = await res.json();
       if (res.ok && data.success) {
         setHotspots(data.hotspots);
@@ -53,7 +69,9 @@ export default function DataAnalystDashboard() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [queryString]);
+
+  const toggleSortDir = () => setSortDir((d) => (d === "asc" ? "desc" : "asc"));
 
   const logout = () => {
     localStorage.clear();
@@ -74,6 +92,9 @@ export default function DataAnalystDashboard() {
           <Logo size={24} showWordmark={false} />
         </div>
         <div className="flex items-center gap-4 shrink-0">
+          <Link to="/trip-report" className="hidden md:flex items-center gap-2 text-sm font-semibold text-brand-muted hover:text-brand-ink">
+            <ClipboardList size={16} /> <span className="hidden lg:inline">Trip Report</span>
+          </Link>
           <Link to="/ai-candidates" className="flex items-center gap-2 text-sm font-semibold text-brand-muted hover:text-brand-ink">
             <Sparkles size={16} /> <span className="hidden sm:inline">Live Risk Intelligence</span>
           </Link>
@@ -93,12 +114,58 @@ export default function DataAnalystDashboard() {
               Areas with repeated hazard reports, clustered geographically to highlight the most dangerous zones.
             </p>
           </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <ReportExportButtons basePath={`/api/reports/hotspots?${queryString}`} filename="hotspot_report" />
+            <button
+              onClick={load}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
+            >
+              <RefreshCw size={14} /> Regenerate
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-end gap-3 flex-wrap bg-white border border-brand-border rounded-2xl p-4">
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wide text-brand-muted mb-1">Min. Count</label>
+            <input
+              type="number"
+              min={0}
+              value={minCount}
+              onChange={(e) => setMinCount(Math.max(0, Number(e.target.value)))}
+              className="border border-brand-border rounded-lg px-3 py-1.5 text-sm w-24"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wide text-brand-muted mb-1">Sort By</label>
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as "count" | "lat" | "lng")} className="border border-brand-border rounded-lg px-3 py-1.5 text-sm">
+              <option value="count">Count</option>
+              <option value="lat">Latitude</option>
+              <option value="lng">Longitude</option>
+            </select>
+          </div>
           <button
-            onClick={load}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
+            onClick={toggleSortDir}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-brand-border text-sm font-semibold hover:border-brand-blue/40"
+            title="Toggle sort direction"
           >
-            <RefreshCw size={14} /> Regenerate
+            <ArrowUpDown size={14} /> {sortDir === "asc" ? "Ascending" : "Descending"}
           </button>
+          <label className="flex items-center gap-2 text-sm font-semibold text-brand-ink cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={includeResolved}
+              onChange={(e) => setIncludeResolved(e.target.checked)}
+              className="size-4 accent-brand-blue"
+            />
+            Include resolved
+          </label>
+          <Link
+            to="/hazard-response-report"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-brand-border text-sm font-semibold hover:border-brand-blue/40 ml-auto"
+          >
+            <ShieldAlert size={14} /> Hazard Response Report
+          </Link>
         </div>
 
         {generatedAt && <p className="text-xs text-brand-muted">Generated {new Date(generatedAt).toLocaleString()}</p>}

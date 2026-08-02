@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Trash2, Pencil, Check, X, Filter as FilterIcon } from 'lucide-react';
 import AdminShell from '@/components/AdminShell';
+import { usePageTitle } from '@/lib/usePageTitle';
 
 /**
  * BACKEND ENDPOINTS (Express + MySQL) — confirmed against hazards.route.js
@@ -45,6 +46,7 @@ const inputClass = "w-full h-10 px-3 bg-white border border-brand-border rounded
 const labelClass = "text-[11px] font-bold uppercase tracking-wide text-brand-muted block mb-1";
 
 export default function HazardReports() {
+  usePageTitle("Hazard Reports");
   const [allReports, setAllReports] = useState<HazardReport[]>([]);
 
   const [searchHazardType, setSearchHazardType] = useState('');
@@ -141,6 +143,19 @@ export default function HazardReports() {
     loadReports();
   }, []);
 
+  // FK dropdown: derived from the reports already loaded (each row carries
+  // its reporter's username/email) instead of a raw numeric ID the admin
+  // would have to already know.
+  const userOptions = useMemo(() => {
+    const seen = new Map<number, string>();
+    allReports.forEach((r) => {
+      if (!seen.has(r.user_id)) {
+        seen.set(r.user_id, `${r.username || 'unknown'} (${r.email || 'no email'})`);
+      }
+    });
+    return Array.from(seen.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [allReports]);
+
   const filteredReports = useMemo(() => {
     return allReports.filter((r) => {
       if (searchHazardType && !r.hazardType?.toLowerCase().includes(searchHazardType.toLowerCase())) return false;
@@ -191,8 +206,13 @@ export default function HazardReports() {
               <input type="number" placeholder="Hazard ID" value={filterHazardId} onChange={(e) => setFilterHazardId(e.target.value)} className={inputClass} />
             </div>
             <div>
-              <label className={labelClass}>User ID</label>
-              <input type="number" placeholder="User ID" value={filterUserId} onChange={(e) => setFilterUserId(e.target.value)} className={inputClass} />
+              <label className={labelClass}>Reported By</label>
+              <select value={filterUserId} onChange={(e) => setFilterUserId(e.target.value)} className={inputClass}>
+                <option value="">All users</option>
+                {userOptions.map(([id, label]) => (
+                  <option key={id} value={id}>{label}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className={labelClass}>User Email</label>
