@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
-import { LogOut, ArrowLeft, RefreshCw, TrendingUp } from "lucide-react";
+import { useNavigate, Link } from "react-router";
+import { LogOut, ArrowLeft, RefreshCw, TrendingUp, Sparkles } from "lucide-react";
 import { Map, MapMarker, MarkerContent, MarkerPopup } from "@/components/ui/map";
 import Logo from "@/components/Logo";
 
@@ -73,9 +73,14 @@ export default function DataAnalystDashboard() {
           </button>
           <Logo size={24} showWordmark={false} />
         </div>
-        <button onClick={logout} className="flex items-center gap-2 text-sm font-semibold text-brand-muted hover:text-brand-ink shrink-0">
-          <LogOut size={16} /> <span className="hidden sm:inline">Log out</span>
-        </button>
+        <div className="flex items-center gap-4 shrink-0">
+          <Link to="/ai-candidates" className="flex items-center gap-2 text-sm font-semibold text-brand-muted hover:text-brand-ink">
+            <Sparkles size={16} /> <span className="hidden sm:inline">Live Risk Intelligence</span>
+          </Link>
+          <button onClick={logout} className="flex items-center gap-2 text-sm font-semibold text-brand-muted hover:text-brand-ink">
+            <LogOut size={16} /> <span className="hidden sm:inline">Log out</span>
+          </button>
+        </div>
       </header>
 
       <main className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">

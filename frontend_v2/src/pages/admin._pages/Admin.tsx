@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router';
-import { Users, MapPin, AlertTriangle, UserCog, BarChart3 } from 'lucide-react';
+import { Users, MapPin, AlertTriangle, UserCog, BarChart3, Sparkles } from 'lucide-react';
 import AdminShell from '@/components/AdminShell';
 
 interface NavItem {
@@ -42,6 +42,12 @@ const Admin: React.FC = () => {
       icon: <BarChart3 size={22} />,
       label: 'Safety Report',
       sub: 'System-wide hazard & trip statistics',
+    },
+    {
+      href: '/ai-candidates',
+      icon: <Sparkles size={22} />,
+      label: 'Live Risk Intelligence',
+      sub: 'Review AI-classified news before it reaches the risk database',
     },
   ];
 
