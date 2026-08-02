@@ -54,45 +54,45 @@ function App() {
                    path="about" 
                    element={<Test/>}
                 />
-              <Route 
-                  path="contact" 
+              <Route
+                  path="contact"
                   element={<ContactPage/>}
                />
-              <Route 
-                   path="map"  
-                   element={<MapLayout/>}
-                   loader={()=>loggIn("login first to use map")}
-              >
-                  <Route 
-                     index 
-                     element={<MapCurrent/>}
-                     loader={()=>loggIn("login first to use map")}
-                    />
-                  <Route 
-                     path="historical_events" 
-                     element={<HistoralEvents/>}
-                     loader={()=>loggIn("login first to use map")}
-                   />
-                  <Route 
-                     path="current_events" 
-                     element={<CurrentEventMap/>}
-                     loader={()=>loggIn("login first to use map")}
-                  />
-                  <Route 
-                     path="safe_route" 
-                     element={<h1>Current location</h1>}
-                     loader={()=>loggIn("login first to use map")}
-                   />
-              </Route>
-              <Route 
-                 path="account" 
+              <Route
+                 path="account"
                  loader={accountHolderLoader}
                  element={<AccountHolder/>}
                />
-              <Route 
-                  path="*" 
+              <Route
+                  path="*"
                   element={<NotFoundPage/>}
                 />
+          </Route>
+          {/*
+            The map is its own full-screen app shell, deliberately NOT nested
+            under the marketing Layout — Layout's sticky header + footer were
+            pushing the map's own h-screen toolbar below the fold.
+          */}
+          <Route
+               path="map"
+               element={<MapLayout/>}
+               loader={()=>loggIn("login first to use map")}
+          >
+              <Route
+                 index
+                 element={<MapCurrent/>}
+                 loader={()=>loggIn("login first to use map")}
+                />
+              <Route
+                 path="historical_events"
+                 element={<HistoralEvents/>}
+                 loader={()=>loggIn("login first to use map")}
+               />
+              <Route
+                 path="current_events"
+                 element={<CurrentEventMap/>}
+                 loader={()=>loggIn("login first to use map")}
+              />
           </Route>
           <Route
             path="admin"

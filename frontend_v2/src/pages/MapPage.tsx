@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { NavLink, Outlet, useNavigate, useSearchParams } from "react-router";
-import { 
-  Mountain, Map as MapIcon, 
-  History, Radio, 
-  Navigation2, 
-  AlertTriangle, 
+import { Link, NavLink, Outlet, useSearchParams } from "react-router";
+import {
+  Mountain, Map as MapIcon,
+  History, Radio,
+  Navigation2,
+  AlertTriangle,
   TriangleAlert,
   Sparkles,
   BrainCircuit,
-  LocateFixed
+  LocateFixed,
+  MapPin,
+  Check,
+  X as XIcon
 } from "lucide-react";
 import { Map, MapControls, MapMarker, MarkerContent, MarkerPopup, type MapRef } from "@/components/ui/map";
 import type { LngLatLike } from "maplibre-gl";
@@ -32,6 +35,7 @@ import {
 import Layer from "@/components/AvoidPlaceLayer";
 import { toast } from "react-hot-toast";
 import { SubscriptionDrawer } from "@/components/SubscriptionDrawer";
+import Logo from "@/components/Logo";
 
 type Role = "ADMIN" | "PREMIUM" | "USER"
 
@@ -57,6 +61,15 @@ export default function MapPage(): React.JSX.Element {
     lng: (coords[0] as number),
     lat: (coords[1] as number),
   });
+
+  // ── Pick destination by dragging a pin on the map ──────────────────────────
+  const [pickingDestination, setPickingDestination] = useState<boolean>(false)
+  const [destinationPin, setDestinationPin] = useState({
+    lng: (coords[0] as number),
+    lat: (coords[1] as number),
+  });
+  const [destinationPinAddress, setDestinationPinAddress] = useState<string>("")
+  const [resolvingPinAddress, setResolvingPinAddress] = useState<boolean>(false)
 
   useEffect(() => {
     if (!coords) return;
@@ -181,19 +194,19 @@ export default function MapPage(): React.JSX.Element {
             <div
               className={`${
                 t.visible ? "animate-enter" : "animate-leave"
-              } max-w-xs w-full bg-slate-900/95 border border-indigo-500/40 shadow-xl 
+              } max-w-xs w-full bg-slate-900/95 border border-blue-500/40 shadow-xl 
                 rounded-lg pointer-events-auto flex backdrop-blur-md overflow-hidden group`}
             >
-              <div className="w-1 bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.8)]" />
+              <div className="w-1 bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
               <div className="flex-1 p-3">
                 <div className="flex items-center gap-3">
                   <div className="flex-shrink-0">
-                    <div className="h-8 w-8 rounded-md bg-indigo-500/20 flex items-center justify-center border border-indigo-400/20">
-                      <Sparkles className="h-4 w-4 text-indigo-400" />
+                    <div className="h-8 w-8 rounded-md bg-blue-500/20 flex items-center justify-center border border-blue-400/20">
+                      <Sparkles className="h-4 w-4 text-blue-400" />
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-black text-indigo-400 uppercase tracking-tighter">
+                    <p className="text-[11px] font-black text-blue-400 uppercase tracking-tighter">
                       AI Scan Complete
                     </p>
                     <p className="text-xs text-slate-200 font-medium truncate">
@@ -219,19 +232,19 @@ export default function MapPage(): React.JSX.Element {
             <div
               className={`${
                 t.visible ? "animate-enter" : "animate-leave"
-              } max-w-xs w-full bg-slate-900/95 border border-indigo-500/40 shadow-xl 
+              } max-w-xs w-full bg-slate-900/95 border border-blue-500/40 shadow-xl 
                 rounded-lg pointer-events-auto flex backdrop-blur-md overflow-hidden group`}
             >
-              <div className="w-1 bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.8)]" />
+              <div className="w-1 bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
               <div className="flex-1 p-3">
                 <div className="flex items-center gap-3">
                   <div className="flex-shrink-0">
-                    <div className="h-8 w-8 rounded-md bg-indigo-500/20 flex items-center justify-center border border-indigo-400/20">
-                      <Sparkles className="h-4 w-4 text-indigo-400" />
+                    <div className="h-8 w-8 rounded-md bg-blue-500/20 flex items-center justify-center border border-blue-400/20">
+                      <Sparkles className="h-4 w-4 text-blue-400" />
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-black text-indigo-400 uppercase tracking-tighter">
+                    <p className="text-[11px] font-black text-blue-400 uppercase tracking-tighter">
                       AI Scan Complete
                     </p>
                     <p className={`text-xs font-medium truncate ${riskColor}`}>
@@ -241,7 +254,7 @@ export default function MapPage(): React.JSX.Element {
                       {result.explanation}
                     </p>
                     {result.alternatives.length > 0 && (
-                      <p className="text-[10px] text-indigo-300 mt-0.5">
+                      <p className="text-[10px] text-blue-300 mt-0.5">
                         {result.alternatives.length} safer alternative(s) available.
                       </p>
                     )}
@@ -314,20 +327,78 @@ export default function MapPage(): React.JSX.Element {
     mapRef.current?.flyTo({ center: [coords[0], coords[1]], zoom: 12 });
   };
 
+  // ── Pick destination by dragging a pin on the map ──────────────────────────
+  function startPickingDestination() {
+    if (pickingDestination) {
+      setPickingDestination(false);
+      return;
+    }
+    setReport(false);
+    const startLng = coords[0] as number;
+    const startLat = coords[1] as number;
+    setDestinationPin({ lng: startLng, lat: startLat });
+    setDestinationPinAddress("");
+    setPickingDestination(true);
+    handleFlyTo([startLng, startLat]);
+    resolvePinAddress(startLng, startLat);
+  }
+
+  async function resolvePinAddress(lng: number, lat: number) {
+    setResolvingPinAddress(true);
+    try {
+      const res = await fetch(
+        `https://api.geoapify.com/v1/geocode/reverse?lat=${lat}&lon=${lng}&format=json&apiKey=${apiKey}`
+      );
+      const data = await res.json();
+      const formatted = data.results?.[0]?.formatted;
+      setDestinationPinAddress(formatted || `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+    } catch (err) {
+      console.error("Failed to resolve dropped pin address:", err);
+      setDestinationPinAddress(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+    } finally {
+      setResolvingPinAddress(false);
+    }
+  }
+
+  async function confirmDestinationPin() {
+    const name = destinationPinAddress || `${destinationPin.lat.toFixed(5)}, ${destinationPin.lng.toFixed(5)}`;
+    setLocationSearched({ name, lon: destinationPin.lng, lat: destinationPin.lat });
+    setSearchParams({ name, lon: String(destinationPin.lng), lat: String(destinationPin.lat) });
+    setPickingDestination(false);
+
+    // Log the trip the same way a search-picked destination is logged.
+    try {
+      const stLoc = await fetch(`https://api.geoapify.com/v1/geocode/reverse?lat=${coords[1] as number}&lon=${coords[0] as number}&format=json&apiKey=${apiKey}`);
+      const startData = await stLoc.json();
+      const sl = startData.results?.[0]?.formatted;
+      await logUserDestination({ startLocation: sl, endLocation: name }, localStorage.getItem("token") || "");
+    } catch (err) {
+      console.error("Failed to log dropped-pin destination:", err);
+    }
+  }
+
   return (
     <main className="relative h-screen w-full overflow-hidden font-sans antialiased text-slate-100">
   
-      <header className="absolute top-6 left-6 z-[1000] flex items-start pointer-events-none">
-        <div className="flex items-center gap-1 bg-slate-900/90 backdrop-blur-2xl p-1.5 rounded-2xl shadow-2xl border border-indigo-500/30 pointer-events-auto">
-          
-          <div className="flex items-center bg-indigo-950/40 rounded-xl px-2 border border-white/10 mr-1">
+      <header className="absolute top-6 left-6 z-[1000] flex items-start gap-2 pointer-events-none">
+        <Link
+          to="/"
+          title="Back to Mapper home"
+          className="flex items-center justify-center size-11 rounded-2xl bg-slate-900/90 backdrop-blur-2xl shadow-2xl border border-blue-500/30 pointer-events-auto text-slate-300 hover:text-blue-300 transition-colors"
+        >
+          <Logo size={22} showWordmark={false} ringClassName="text-slate-300" />
+        </Link>
+
+        <div className="flex items-center gap-1 bg-slate-900/90 backdrop-blur-2xl p-1.5 rounded-2xl shadow-2xl border border-blue-500/30 pointer-events-auto">
+
+          <div className="flex items-center bg-blue-950/40 rounded-xl px-2 border border-white/10 mr-1">
             <DialogDemo 
               locationSearched={locationSearched}
               setLocationSearched={setLocationSearched} 
               locationsSuggests={dataSuggested?.map((data, i) => (
                 <div 
                   key={i}
-                  className="p-3 flex items-center gap-2 hover:bg-indigo-900/40 cursor-pointer transition-colors border-b border-slate-800 last:border-0"
+                  className="p-3 flex items-center gap-2 hover:bg-blue-900/40 cursor-pointer transition-colors border-b border-slate-800 last:border-0"
                   onClick={async () => {
                     setLocationSearched({
                       name: data?.properties?.formatted,
@@ -340,29 +411,40 @@ export default function MapPage(): React.JSX.Element {
                     await logUserDestination({ startLocation: sl, endLocation: locationSearched.name }, localStorage.getItem("token") || "")
                   }}
                 >
-                  <Navigation2 size={14} className="text-indigo-400 rotate-45" />
+                  <Navigation2 size={14} className="text-blue-400 rotate-45" />
                   <span className="text-xs text-slate-300">{data?.properties?.formatted}</span>
                 </div>
               ))}
             />
           </div>
 
+          <button
+            onClick={startPickingDestination}
+            title="Drop a pin to choose a destination"
+            className={`flex items-center gap-1.5 px-3 h-11 rounded-xl mr-1 border text-[10px] font-bold uppercase tracking-wide transition-all
+              ${pickingDestination
+                ? "bg-blue-600 border-blue-400 text-white"
+                : "bg-blue-950/40 border-white/10 text-blue-300 hover:bg-blue-900/40"}`}
+          >
+            <MapPin size={16} /> <span className="max-lg:hidden">Drop Pin</span>
+          </button>
+
           <nav className="flex items-center gap-1">
-            <NavLink to="../map" end className={({ isActive }) => `p-2 rounded-lg transition-all ${isActive ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-indigo-300'}`}>
-              <MapIcon size={18} />
+            <NavLink to="/map" end title="Current route" className={({ isActive }) => `flex items-center gap-1.5 px-2.5 py-2 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wide ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-blue-300'}`}>
+              <MapIcon size={16} /> <span className="max-lg:hidden">Route</span>
             </NavLink>
-            <NavLink to="historical_events" className={({ isActive }) => `p-2 rounded-lg transition-all ${isActive ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-indigo-300'}`}>
-              <History size={18} />
+            <NavLink to="historical_events" title="Past hazard reports" className={({ isActive }) => `flex items-center gap-1.5 px-2.5 py-2 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wide ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-blue-300'}`}>
+              <History size={16} /> <span className="max-lg:hidden">History</span>
             </NavLink>
-            <NavLink to="current_events" className={({ isActive }) => `p-2 rounded-lg transition-all ${isActive ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-indigo-300'}`}>
-              <Radio size={18} />
+            <NavLink to="current_events" title="Live hazard reports" className={({ isActive }) => `flex items-center gap-1.5 px-2.5 py-2 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wide ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-blue-300'}`}>
+              <Radio size={16} /> <span className="max-lg:hidden">Live</span>
             </NavLink>
-            <button 
+            <button
               onClick={() => handleFlyTo(coords as [number, number])}
-              className="p-2 rounded-lg transition-all text-slate-400 hover:text-indigo-300 hover:bg-indigo-600/20 active:scale-90"
-              title="My Location"
+              className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wide text-slate-400 hover:text-blue-300 hover:bg-blue-600/20 active:scale-90"
+              title="Center on my location"
             >
-              <LocateFixed size={18} />
+              <LocateFixed size={16} /> <span className="max-lg:hidden">Me</span>
             </button>
           </nav>
         </div>
@@ -370,7 +452,7 @@ export default function MapPage(): React.JSX.Element {
 
       {/* ── SafeMaster: Route Risk Panel ─────────────────────────────────────── */}
       {safeRouteResult && (
-        <div className="absolute top-24 left-6 z-[999] max-w-xs w-72 bg-slate-900/95 border border-indigo-500/30 rounded-2xl shadow-2xl backdrop-blur-xl pointer-events-auto overflow-hidden">
+        <div className="absolute top-24 left-6 z-[999] max-w-xs w-72 bg-slate-900/95 border border-blue-500/30 rounded-2xl shadow-2xl backdrop-blur-xl pointer-events-auto overflow-hidden">
           {/* Risk level header */}
           <div
             className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest flex items-center gap-2
@@ -387,10 +469,10 @@ export default function MapPage(): React.JSX.Element {
           {/* Best route */}
           <div
             className={`px-4 py-2.5 border-b border-slate-800 cursor-pointer transition-colors
-              ${selectedAltIndex === null ? "bg-indigo-600/10" : "hover:bg-slate-800/40"}`}
+              ${selectedAltIndex === null ? "bg-blue-600/10" : "hover:bg-slate-800/40"}`}
             onClick={() => setSelectedAltIndex(null)}
           >
-            <p className="text-[11px] font-bold text-indigo-300 truncate">
+            <p className="text-[11px] font-bold text-blue-300 truncate">
               {safeRouteResult.best.label}
             </p>
             <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-2">
@@ -418,7 +500,7 @@ export default function MapPage(): React.JSX.Element {
                     key={i}
                     className={`px-3 py-2 rounded-lg cursor-pointer transition-colors border
                       ${selectedAltIndex === i
-                        ? "bg-indigo-600/15 border-indigo-500/40 text-indigo-300"
+                        ? "bg-blue-600/15 border-blue-500/40 text-blue-300"
                         : "bg-slate-800/40 border-slate-700/40 text-slate-400 hover:bg-slate-800"}`}
                     onClick={() => setSelectedAltIndex(i)}
                   >
@@ -540,6 +622,63 @@ export default function MapPage(): React.JSX.Element {
             </MapMarker>
           )}
 
+          {pickingDestination && (
+            <MapMarker
+              draggable
+              longitude={destinationPin.lng}
+              latitude={destinationPin.lat}
+              onDragStart={() => setDestinationPinAddress("")}
+              onDrag={(lngLat) => {
+                setDestinationPin({ lng: lngLat.lng, lat: lngLat.lat });
+              }}
+              onDragEnd={(lngLat) => {
+                setDestinationPin({ lng: lngLat.lng, lat: lngLat.lat });
+                resolvePinAddress(lngLat.lng, lngLat.lat);
+              }}
+            >
+              <MarkerContent>
+                <div className="relative group cursor-grab active:cursor-grabbing">
+                  <div className="absolute inset-0 -m-5 rounded-full bg-blue-500/10 border border-blue-500/20 animate-ping" />
+                  <div className="relative z-10 bg-blue-600 p-2.5 rounded-xl shadow-lg border border-blue-400">
+                    <MapPin size={18} className="text-white" />
+                  </div>
+                </div>
+              </MarkerContent>
+              <MarkerPopup className="p-0 min-w-[220px]">
+                <div className="flex flex-col gap-2.5 p-1">
+                  <div>
+                    <h4 className="text-[9px] font-black uppercase tracking-widest text-blue-400">
+                      Dropped Pin
+                    </h4>
+                    <p className="text-[11px] text-slate-300 font-medium mt-0.5">
+                      {resolvingPinAddress
+                        ? "Resolving address…"
+                        : destinationPinAddress || "Drag the pin, then tap it again to confirm."}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-1.5">
+                    <Button
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 h-8 rounded-lg text-[10px] font-bold border-none text-white flex items-center justify-center gap-1.5"
+                      disabled={resolvingPinAddress}
+                      onClick={confirmDestinationPin}
+                    >
+                      <Check size={14} /> Set as Destination
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+                      onClick={() => setPickingDestination(false)}
+                      title="Cancel"
+                    >
+                      <XIcon size={14} />
+                    </Button>
+                  </div>
+                </div>
+              </MarkerPopup>
+            </MapMarker>
+          )}
+
           {/*
             Pass safeRouteResult + selectedAltIndex to MapCurrent via Outlet context
             so it can render the correct route geometry (best or chosen alternative).
@@ -558,8 +697,17 @@ export default function MapPage(): React.JSX.Element {
         setValue={setUserRole}
       />
 
-      <footer className="absolute bottom-8 left-0 right-0 z-[1000] px-6 pointer-events-none">
-        <div className="max-w-xl mx-auto flex items-center justify-between gap-4 pointer-events-auto bg-slate-900/95 backdrop-blur-2xl p-2.5 rounded-[28px] border border-indigo-500/30 shadow-2xl">
+      <footer className="absolute bottom-8 left-0 right-0 z-[1000] px-6 pointer-events-none flex flex-col items-center gap-2">
+        {pickingDestination ? (
+          <div className="pointer-events-auto flex items-center gap-2 bg-slate-900/95 backdrop-blur-2xl px-4 py-1.5 rounded-full border border-blue-500/30 shadow-xl text-[10px] font-bold uppercase tracking-wide text-blue-300">
+            <MapPin size={12} /> Drag the blue pin, then tap it to confirm your destination
+          </div>
+        ) : isEmpty && (
+          <div className="pointer-events-auto flex items-center gap-2 bg-slate-900/95 backdrop-blur-2xl px-4 py-1.5 rounded-full border border-blue-500/30 shadow-xl text-[10px] font-bold uppercase tracking-wide text-blue-300">
+            <Navigation2 size={12} /> Search above or drop a pin, then tap AI SAFE PATH
+          </div>
+        )}
+        <div className="max-w-xl w-full mx-auto flex items-center justify-between gap-4 pointer-events-auto bg-slate-900/95 backdrop-blur-2xl p-2.5 rounded-[28px] border border-blue-500/30 shadow-2xl">
           
           <Button
             onClick={() => {
@@ -577,8 +725,8 @@ export default function MapPage(): React.JSX.Element {
             <span>REPORT DANGER</span>
           </Button>
 
-          <div className="flex items-center gap-2 bg-indigo-950/40 px-3 py-1.5 rounded-lg border border-white/5">
-            <Mountain size={14} className="text-indigo-400" />
+          <div className="flex items-center gap-2 bg-blue-950/40 px-3 py-1.5 rounded-lg border border-white/5">
+            <Mountain size={14} className="text-blue-400" />
             <select
               value={style}
               onChange={(e) => setStyle(e.target.value as StyleKey)}
@@ -595,22 +743,22 @@ export default function MapPage(): React.JSX.Element {
             disabled={isCalculating || isEmpty}
             className={`
               relative h-10 px-5 overflow-hidden
-              bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900
-              text-white border border-indigo-500/40
+              bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900
+              text-white border border-blue-500/40
               rounded-xl shadow-[0_0_15px_rgba(79,70,229,0.2)]
               transition-all duration-300 group
-              ${isCalculating ? 'opacity-70' : 'hover:border-indigo-400 hover:scale-[1.02] active:scale-95'}
+              ${isCalculating ? 'opacity-70' : 'hover:border-blue-400 hover:scale-[1.02] active:scale-95'}
             `}
           >
             <div className="relative z-10 flex items-center gap-2">
               {isCalculating ? (
                 <>
-                  <BrainCircuit size={18} className="text-indigo-300 animate-pulse" />
+                  <BrainCircuit size={18} className="text-blue-300 animate-pulse" />
                   <span className="text-[10px] font-medium uppercase">Processing...</span>
                 </>
               ) : (
                 <>
-                  <Sparkles size={18} className="text-indigo-400 group-hover:rotate-12 transition-transform" />
+                  <Sparkles size={18} className="text-blue-400 group-hover:rotate-12 transition-transform" />
                   <span className="text-[10px] font-black uppercase tracking-widest">AI SAFE PATH</span>
                 </>
               )}

@@ -436,7 +436,19 @@ export async function generateSafeRoute(
       const items = await fetchOsrmPath([startCoord, via, endCoord]);
       for (const item of items) {
         const scoring = scoreRoutePath(item.geojson.geometry.coordinates, hazards);
-        if (scoring.incidentsOnRoute >= blockingHazards.length) continue;
+        // Gate on hits against the hazards this detour was built to avoid,
+        // not the total hazard count city-wide — a detour that clears the
+        // hazards blocking the direct route is a real improvement even if
+        // it happens to pass near some unrelated hazard elsewhere. Gating
+        // on the total count instead was rejecting every detour whenever
+        // any other hazard existed nearby, which is exactly the case for
+        // hazards close to the user's own starting point (a dense local
+        // cluster), while long trips rarely pass near unrelated hazards.
+        const blockingHits = scoreRoutePath(
+          item.geojson.geometry.coordinates,
+          blockingHazards
+        ).incidentsOnRoute;
+        if (blockingHits >= blockingHazards.length) continue;
         const label =
           scoring.incidentsOnRoute === 0
             ? "Safer detour (clear of incidents)"
@@ -455,7 +467,11 @@ export async function generateSafeRoute(
       ]);
       for (const item of items) {
         const scoring = scoreRoutePath(item.geojson.geometry.coordinates, hazards);
-        if (scoring.incidentsOnRoute === 0) {
+        const blockingHits = scoreRoutePath(
+          item.geojson.geometry.coordinates,
+          blockingHazards
+        ).incidentsOnRoute;
+        if (blockingHits === 0) {
           addCandidate(
             buildCandidate(item, scoring, "Multi-point detour (clear of incidents)")
           );
@@ -717,22 +733,6 @@ export function doesRouteInterceptAvoidZone(
 }
 
 const BASE_URL = "https://mapper-backend-brkn.onrender.com";
-
-export async function fetchAccidentCoordinates(): Promise<[number, number][]> {
-  try {
-    const response = await fetch("http://localhost:8002/mapper/api/history");
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-    const data = await response.json();
-    const coordinates: [number, number][] = data.features.map(
-      (feature: any) => feature.geometry.coordinates
-    );
-    return coordinates;
-  } catch (error) {
-    console.error("Failed to fetch accident coordinates:", error);
-    return [];
-  }
-}
 
 export interface HazardReportPayload {
   latitude: number;
