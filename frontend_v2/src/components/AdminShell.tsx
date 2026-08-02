@@ -28,29 +28,29 @@ export default function AdminShell({ title, subtitle, children, headerActions, b
 
   return (
     <div className="min-h-screen bg-brand-bg text-brand-ink">
-      <header className="sticky top-0 z-20 h-16 px-6 flex items-center justify-between bg-brand-bg/90 backdrop-blur-md border-b border-brand-border">
-        <div className="flex items-center gap-4">
+      <header className="sticky top-0 z-20 h-16 px-3 sm:px-6 flex items-center justify-between bg-brand-bg/90 backdrop-blur-md border-b border-brand-border">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
           {backTo && (
-            <Link to={backTo} className="text-brand-muted hover:text-brand-ink" title="Back">
+            <Link to={backTo} className="text-brand-muted hover:text-brand-ink shrink-0" title="Back">
               <ArrowLeft size={18} />
             </Link>
           )}
-          <Link to="/">
-            <Logo size={26} />
+          <Link to="/" className="shrink-0">
+            <Logo size={24} showWordmark={false} />
           </Link>
         </div>
         <button
           onClick={logout}
-          className="flex items-center gap-2 text-sm font-semibold text-brand-muted hover:text-brand-ink"
+          className="flex items-center gap-2 text-sm font-semibold text-brand-muted hover:text-brand-ink shrink-0"
         >
-          <LogOut size={16} /> Log out
+          <LogOut size={16} /> <span className="hidden sm:inline">Log out</span>
         </button>
       </header>
 
-      <main className="max-w-6xl mx-auto p-6 space-y-6">
+      <main className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold">{title}</h1>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold">{title}</h1>
             {subtitle && <p className="text-brand-muted text-sm mt-1">{subtitle}</p>}
           </div>
           {headerActions}

@@ -58,39 +58,39 @@ export default function HomePage(): React.JSX.Element {
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     {/* Featured News: Large Bento Box */}
-                    <div className="lg:col-span-8 relative group h-[420px] rounded-3xl overflow-hidden border border-brand-border bg-white shadow-sm">
+                    <div className="lg:col-span-8 relative group h-[300px] sm:h-[420px] rounded-3xl overflow-hidden border border-brand-border bg-white shadow-sm">
                         {newsItems.map((item: NewsItem, index: number) => (
                             <div
                                 key={item.id}
                                 className={`absolute inset-0 transition-all duration-1000 ${index === currentIndex ? "opacity-100 scale-100" : "opacity-0 scale-105 pointer-events-none"}`}
                                 style={{ backgroundImage: `url(${item.src})`, backgroundSize: "cover", backgroundPosition: "center" }}
                             >
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent flex flex-col justify-end p-10">
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent flex flex-col justify-end p-5 sm:p-10">
                                     <span className="bg-brand-blue text-[10px] font-bold px-3 py-1 rounded-full text-white uppercase mb-4 inline-block w-fit">Flash Report</span>
-                                    <h3 className="text-xl md:text-2xl font-bold text-white mb-2">{item.title}</h3>
+                                    <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-2">{item.title}</h3>
                                     <p className="text-sm text-slate-200 line-clamp-2 max-w-xl">{item.description}</p>
                                 </div>
                             </div>
                         ))}
 
-                        <div className="absolute bottom-10 right-10 flex gap-3 z-20">
-                            <button onClick={prevItem} className="p-3 rounded-full bg-white/20 backdrop-blur-md hover:bg-white/30 text-white transition-all">
+                        <div className="absolute bottom-4 right-4 sm:bottom-10 sm:right-10 flex gap-3 z-20">
+                            <button onClick={prevItem} className="p-2.5 sm:p-3 rounded-full bg-white/20 backdrop-blur-md hover:bg-white/30 text-white transition-all">
                                 <ChevronsLeft size={20} />
                             </button>
-                            <button onClick={nextItem} className="p-3 rounded-full bg-white/20 backdrop-blur-md hover:bg-white/30 text-white transition-all">
+                            <button onClick={nextItem} className="p-2.5 sm:p-3 rounded-full bg-white/20 backdrop-blur-md hover:bg-white/30 text-white transition-all">
                                 <ChevronsRight size={20} />
                             </button>
                         </div>
                     </div>
 
                     {/* Small Bento Box: Features */}
-                    <div className="lg:col-span-4 grid grid-rows-2 gap-6">
-                        <div className="bg-white p-8 rounded-3xl border border-brand-border shadow-sm flex flex-col justify-center space-y-3 hover:border-brand-blue/40 transition-colors">
+                    <div className="lg:col-span-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 lg:grid-rows-2 gap-6">
+                        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-brand-border shadow-sm flex flex-col justify-center space-y-3 hover:border-brand-blue/40 transition-colors">
                             <ShieldCheck className="text-brand-blue" size={30} />
                             <h4 className="text-lg font-bold">Safety Analysis</h4>
                             <p className="text-xs leading-relaxed text-brand-muted">High-risk zone detection using localized incident history.</p>
                         </div>
-                        <div className="bg-white p-8 rounded-3xl border border-brand-border shadow-sm flex flex-col justify-center space-y-3 hover:border-brand-blue/40 transition-colors">
+                        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-brand-border shadow-sm flex flex-col justify-center space-y-3 hover:border-brand-blue/40 transition-colors">
                             <MapPin className="text-brand-blue" size={30} />
                             <h4 className="text-lg font-bold">Smart Routing</h4>
                             <p className="text-xs leading-relaxed text-brand-muted">Path optimization that avoids hazards nearest to your current location.</p>
@@ -100,9 +100,9 @@ export default function HomePage(): React.JSX.Element {
             </section>
 
             {/* ACTION SECTION */}
-            <section className="py-20 px-6">
-                <div className="max-w-7xl mx-auto bg-brand-ink rounded-[3rem] p-12 relative overflow-hidden">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10">
+            <section className="py-12 sm:py-20 px-4 sm:px-6">
+                <div className="max-w-7xl mx-auto bg-brand-ink rounded-[2rem] sm:rounded-[3rem] p-6 sm:p-12 relative overflow-hidden">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-16 items-center relative z-10">
                         <div className="space-y-6">
                             <h2 className="text-3xl font-bold text-white leading-tight">Join the community protecting <br /><span className="text-brand-blue">South African commuters.</span></h2>
                             <p className="text-sm text-slate-400 max-w-md leading-relaxed">Create an account to personalize your alerts and contribute to the real-time road safety network.</p>

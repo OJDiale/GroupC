@@ -34,9 +34,9 @@ export default function DialogDemo({
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <button className="pointer-events-auto flex items-center gap-2 px-6 h-11 bg-white/80 backdrop-blur-md border border-white/20 text-blue-600 font-bold rounded-2xl shadow-lg hover:bg-white hover:scale-105 transition-all">
+        <button className="pointer-events-auto flex items-center gap-2 px-3 sm:px-6 h-10 sm:h-11 bg-white/80 backdrop-blur-md border border-white/20 text-blue-600 font-bold rounded-2xl shadow-lg hover:bg-white hover:scale-105 transition-all">
           <Search size={18} />
-          <span>Where to?</span>
+          <span className="hidden sm:inline">Where to?</span>
         </button>
       </DialogTrigger>
 

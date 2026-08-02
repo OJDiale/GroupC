@@ -214,7 +214,7 @@ export default function DriverManagement() {
 
       {isFilterOpen && (
         <div className="bg-white border border-brand-border rounded-2xl p-5">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             <div>
               <label className={labelClass}>Driver ID</label>
               <input type="number" placeholder="Driver ID" value={filters.driverId} onChange={(e) => setFilters((prev) => ({ ...prev, driverId: e.target.value }))} className={inputClass} />
