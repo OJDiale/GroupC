@@ -3,7 +3,7 @@ import { EyeIcon, InfoIcon, EyeOff } from "lucide-react"
 import { useEffect, useState } from "react"
 import toast from "react-hot-toast"
 import { type ActionProps } from "@/lib/types"
-import { loginWithEmailAndPassword, checkForAdmin } from "../database/auth.js"
+import { loginWithEmailAndPassword, checkForAdmin, dashboardPathForRole } from "../database/auth.js"
 
 //form action
 // eslint-disable-next-line react-refresh/only-export-components
@@ -23,9 +23,9 @@ export async function action({ request }: ActionProps) {
         const isAdmin = await checkForAdmin(userType)
         localStorage.setItem("isAdmin", JSON.stringify(isAdmin))
         toast.success("Logged in successfully")
-        if (isAdmin) return redirect("/admin")
-        //redirects to the map
-        return redirect("/map")
+        //redirects each role to its own dashboard (admin, traffic authority,
+        //security agency, data analyst all land somewhere other than /map)
+        return redirect(dashboardPathForRole(userType))
     } catch (err) {
         //surface the real reason login failed instead of a generic message
         const message = err instanceof Error ? err.message : "Login failed. Please try again."

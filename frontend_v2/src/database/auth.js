@@ -48,6 +48,46 @@ export const  checkForAdmin = async (userType) => {
      return userType === "admin"
 
 };
+
+/**
+ * Maps a resolved userType (from login/register) to the dashboard route
+ * that role should land on.
+ */
+export const dashboardPathForRole = (userType) => {
+    switch (userType) {
+        case "admin": return "/admin";
+        case "traffic_authority": return "/traffic-authority";
+        case "security_agency": return "/security-agency";
+        case "data_analyst": return "/data-analyst";
+        default: return "/map";
+    }
+};
+
+/**
+ * Admin-only: creates a staff account (System Administrator, Traffic
+ * Authority, Security Agency or Data Analyst). Requires the caller's own
+ * admin token.
+ */
+export async function registerStaffAccount(email, password, username, firstName, lastName, role) {
+    try {
+        const response = await fetch(`${BASE_URL}/api/auth/register-staff`, {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ email, password, username, firstName, lastName, role })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "Failed to create staff account.");
+        }
+
+        return data;
+    } catch (error) {
+        console.error("Staff registration error:", error.message);
+        throw error;
+    }
+}
 /**
  * Authenticates an existing user
  */

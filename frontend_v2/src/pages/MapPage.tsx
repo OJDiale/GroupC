@@ -27,6 +27,7 @@ import {
   submitHazardReport,
   fetchAndResolveHazardReports,
   logUserDestination,
+  endUserTrip,
   // ── SafeMaster rerouting ──────────────────────────────────────────────────
   generateSafeRoute,
   type SafeRouteResult,
@@ -70,6 +71,10 @@ export default function MapPage(): React.JSX.Element {
   });
   const [destinationPinAddress, setDestinationPinAddress] = useState<string>("")
   const [resolvingPinAddress, setResolvingPinAddress] = useState<boolean>(false)
+
+  // ── End Trip (trip lifecycle) ──────────────────────────────────────────────
+  const [activeTripId, setActiveTripId] = useState<number | null>(null)
+  const [endingTrip, setEndingTrip] = useState<boolean>(false)
 
   useEffect(() => {
     if (!coords) return;
@@ -371,9 +376,31 @@ export default function MapPage(): React.JSX.Element {
       const stLoc = await fetch(`https://api.geoapify.com/v1/geocode/reverse?lat=${coords[1] as number}&lon=${coords[0] as number}&format=json&apiKey=${apiKey}`);
       const startData = await stLoc.json();
       const sl = startData.results?.[0]?.formatted;
-      await logUserDestination({ startLocation: sl, endLocation: name }, localStorage.getItem("token") || "");
+      const logResult = await logUserDestination({ startLocation: sl, endLocation: name }, localStorage.getItem("token") || "");
+      if (logResult.logId) setActiveTripId(logResult.logId);
     } catch (err) {
       console.error("Failed to log dropped-pin destination:", err);
+    }
+  }
+
+  async function endTrip() {
+    if (!activeTripId) return;
+    setEndingTrip(true);
+    try {
+      const result = await endUserTrip(activeTripId, localStorage.getItem("token") || "");
+      if (result.success) {
+        toast.success("Trip ended. Glad you made it safely.");
+        setActiveTripId(null);
+        setSafeRouteResult(null);
+        setSelectedAltIndex(null);
+        setRoutes([]);
+        setSearchParams({});
+        setLocationSearched({ name: "", lon: 0, lat: 0 });
+      } else {
+        toast.error(result.message || "Failed to end trip.");
+      }
+    } finally {
+      setEndingTrip(false);
     }
   }
 
@@ -400,15 +427,17 @@ export default function MapPage(): React.JSX.Element {
                   key={i}
                   className="p-3 flex items-center gap-2 hover:bg-blue-900/40 cursor-pointer transition-colors border-b border-slate-800 last:border-0"
                   onClick={async () => {
+                    const destinationName = data?.properties?.formatted;
                     setLocationSearched({
-                      name: data?.properties?.formatted,
+                      name: destinationName,
                       lon: data?.geometry?.coordinates[0],
                       lat: data?.geometry?.coordinates[1]
                     })
-                    const stLoc = await fetch(`https://api.geoapify.com/v1/geocode/reverse?lat=${coords[1] as number}&lon=${coords[0] as number}&format=json&apiKey=${apiKey}`) 
+                    const stLoc = await fetch(`https://api.geoapify.com/v1/geocode/reverse?lat=${coords[1] as number}&lon=${coords[0] as number}&format=json&apiKey=${apiKey}`)
                     const startData = await stLoc.json()
                     const sl = startData.results?.[0].formatted
-                    await logUserDestination({ startLocation: sl, endLocation: locationSearched.name }, localStorage.getItem("token") || "")
+                    const logResult = await logUserDestination({ startLocation: sl, endLocation: destinationName }, localStorage.getItem("token") || "")
+                    if (logResult.logId) setActiveTripId(logResult.logId)
                   }}
                 >
                   <Navigation2 size={14} className="text-blue-400 rotate-45" />
@@ -702,10 +731,18 @@ export default function MapPage(): React.JSX.Element {
           <div className="pointer-events-auto flex items-center gap-2 bg-slate-900/95 backdrop-blur-2xl px-4 py-1.5 rounded-full border border-blue-500/30 shadow-xl text-[10px] font-bold uppercase tracking-wide text-blue-300">
             <MapPin size={12} /> Drag the blue pin, then tap it to confirm your destination
           </div>
-        ) : isEmpty && (
+        ) : isEmpty ? (
           <div className="pointer-events-auto flex items-center gap-2 bg-slate-900/95 backdrop-blur-2xl px-4 py-1.5 rounded-full border border-blue-500/30 shadow-xl text-[10px] font-bold uppercase tracking-wide text-blue-300">
             <Navigation2 size={12} /> Search above or drop a pin, then tap AI SAFE PATH
           </div>
+        ) : activeTripId && (
+          <button
+            onClick={endTrip}
+            disabled={endingTrip}
+            className="pointer-events-auto flex items-center gap-2 bg-green-600 hover:bg-green-500 disabled:opacity-60 px-4 py-1.5 rounded-full border border-green-400 shadow-xl text-[10px] font-black uppercase tracking-wide text-white transition-colors"
+          >
+            <Check size={12} /> {endingTrip ? "Ending trip…" : "Reached your destination? End Trip"}
+          </button>
         )}
         <div className="max-w-xl w-full mx-auto flex items-center justify-between gap-4 pointer-events-auto bg-slate-900/95 backdrop-blur-2xl p-2.5 rounded-[28px] border border-blue-500/30 shadow-2xl">
           

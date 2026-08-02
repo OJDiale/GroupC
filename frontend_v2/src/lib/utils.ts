@@ -897,6 +897,7 @@ export interface DestinationLog {
   username?: string;
   startLocation: string;
   endLocation: string;
+  endedAt?: string | null;
   createdAt: string;
 }
 
@@ -909,6 +910,22 @@ const getHeaders = (token: string) => ({
   "Content-Type": "application/json",
   "Authorization": `Bearer ${token}`,
 });
+
+export async function endUserTrip(
+  destinationId: number,
+  token: string
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const response = await fetch(`${BASE_URL}/api/normal-user/destinations/${destinationId}/end`, {
+      method: "PATCH",
+      headers: getHeaders(token),
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to end trip:", error);
+    return { success: false, message: "Network request processing failure." };
+  }
+}
 
 export async function logUserDestination(
   payload: NewDestinationPayload,

@@ -34,6 +34,18 @@ const Admin: React.FC = () => {
       label: 'Hazard Reports',
       sub: 'Edit hazard type & remove reports',
     },
+    {
+      href: '/admin_staff',
+      icon: '🧑‍💼',
+      label: 'Staff Accounts',
+      sub: 'Create Traffic Authority, Security Agency & Analyst logins',
+    },
+    {
+      href: '/admin_safety_report',
+      icon: '📊',
+      label: 'Safety Report',
+      sub: 'System-wide hazard & trip statistics',
+    },
   ];
 
   const handleLogout = (e: React.FormEvent<HTMLFormElement>) => {
