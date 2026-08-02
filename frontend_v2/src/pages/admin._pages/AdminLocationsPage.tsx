@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Filter as FilterIcon } from 'lucide-react';
+import { Download, Filter as FilterIcon } from 'lucide-react';
 import AdminShell from '@/components/AdminShell';
 import { usePageTitle } from '@/lib/usePageTitle';
 
@@ -144,14 +144,24 @@ const LocationsPage: React.FC = () => {
     <AdminShell
       title="Destinations"
       subtitle="Logged user destinations, grouped by driver."
-      headerActions={
-        <button
-          onClick={() => setIsFilterOpen(!isFilterOpen)}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
-        >
-          <FilterIcon size={14} /> Filter
-        </button>
-      }
+       headerActions={<div className="flex gap-2">
+         <button
+           onClick={() => downloadReportPdf({
+             title: 'Destination Report', filename: 'destination-report.pdf',
+             columns: ['Destination ID', 'User ID', 'Username', 'Email', 'Start location', 'End location', 'Hazards bypassed', 'Logged at'],
+             rows: groupedByUser.flatMap((group) => group.destinations.map((dest) => [dest.id, dest.userId, dest.username, dest.email, dest.startLocation, dest.endLocation, dest.hazardBypassed, dest.createdAt])),
+           })}
+           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
+         >
+           <Download size={14} /> Download PDF
+         </button>
+         <button
+           onClick={() => setIsFilterOpen(!isFilterOpen)}
+           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
+         >
+           <FilterIcon size={14} /> Filter
+         </button>
+       </div>}
     >
       <input
         type="text"
@@ -163,7 +173,7 @@ const LocationsPage: React.FC = () => {
 
       {isFilterOpen && (
         <div className="bg-white border border-brand-border rounded-2xl p-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div>
               <label className={labelClass}>Driver</label>
               <select value={filters.userId} onChange={(e) => setFilters((prev) => ({ ...prev, userId: e.target.value }))} className={inputClass}>
@@ -220,7 +230,7 @@ const LocationsPage: React.FC = () => {
               </div>
 
               <div className="w-full overflow-x-auto">
-                <table className="w-full border-collapse text-left min-w-[640px]">
+                <table className="w-full border-collapse text-left">
                   <thead>
                     <tr className="bg-brand-bg text-brand-muted text-[11px] font-bold uppercase tracking-wide">
                       <th className="p-3">Destination ID</th>
