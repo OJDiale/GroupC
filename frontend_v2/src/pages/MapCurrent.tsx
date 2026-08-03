@@ -199,7 +199,7 @@ export default function MapCurrent() {
                       : safeRouteResult.riskLevel === "WARNING"
                       ? "text-yellow-500"
                       : "text-red-500"}`}>
-                    Risk: {safeRouteResult.riskLevel} · Score {safeRouteResult.riskScore.toFixed(0)}/100
+                    Risk: {safeRouteResult.riskLevel} · Danger Score {safeRouteResult.riskScore.toFixed(0)}/100
                   </div>
                 )}
               </div>

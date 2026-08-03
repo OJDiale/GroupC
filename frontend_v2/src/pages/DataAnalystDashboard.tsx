@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router";
-import { LogOut, ArrowLeft, RefreshCw, TrendingUp, Sparkles, ArrowUpDown, ClipboardList, ShieldAlert } from "lucide-react";
+import { LogOut, RefreshCw, TrendingUp, Sparkles, ArrowUpDown, ClipboardList, ShieldAlert } from "lucide-react";
 import { Map, MapMarker, MarkerContent, MarkerPopup } from "@/components/ui/map";
 import Logo from "@/components/Logo";
 import ReportExportButtons from "@/components/ReportExportButtons";
@@ -86,9 +86,6 @@ export default function DataAnalystDashboard() {
     <div className="min-h-screen bg-brand-bg text-brand-ink">
       <header className="sticky top-0 z-10 h-16 px-3 sm:px-6 flex items-center justify-between bg-brand-bg/90 backdrop-blur-md border-b border-brand-border">
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-          <button onClick={() => navigate("/")} className="text-brand-muted hover:text-brand-ink shrink-0" title="Back to site">
-            <ArrowLeft size={18} />
-          </button>
           <Logo size={24} showWordmark={false} />
         </div>
         <div className="flex items-center gap-4 shrink-0">

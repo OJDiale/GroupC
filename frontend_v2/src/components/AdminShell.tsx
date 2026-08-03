@@ -35,9 +35,9 @@ export default function AdminShell({ title, subtitle, children, headerActions, b
               <ArrowLeft size={18} />
             </Link>
           )}
-          <Link to="/" className="shrink-0">
+          <div className="shrink-0">
             <Logo size={24} showWordmark={false} />
-          </Link>
+          </div>
         </div>
         <button
           onClick={logout}

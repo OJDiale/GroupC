@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Form, Link, redirect, useNavigate } from "react-router"
+import { Form, Link, redirect } from "react-router"
 import { EyeIcon, EyeOff, ImagePlus } from "lucide-react"
 import { addUser } from "../database/auth.js"
 import type { ActionProps } from "@/lib/types"
@@ -32,9 +32,7 @@ export async function action({ request }: ActionProps) {
 export default function Sigin() {
     usePageTitle("Create Account")
     const [showPassword, setShowPassword] = useState<boolean>(false)
-    const [hasAgreed, setHasAgreed] = useState<boolean>(false)
     const [fileName, setFileName] = useState<string>("")
-    const navigate = useNavigate()
 
     const inputClass = "h-11 px-4 bg-white border border-brand-border rounded-xl placeholder:text-brand-muted focus:outline-none focus:ring-2 focus:ring-brand-blue/40 focus:border-brand-blue"
 
@@ -96,23 +94,8 @@ export default function Sigin() {
                     </button>
                 </div>
 
-                <label className="flex gap-2 items-start text-xs text-brand-muted">
-                    <input className="size-4 mt-0.5" onChange={() => setHasAgreed(pre => !pre)} type="checkbox" />
-                    <span>
-                        I agree to the{" "}
-                        <button
-                            type="button"
-                            onClick={() => navigate("/conditions")}
-                            className="text-brand-blue font-semibold hover:underline"
-                        >
-                            Terms &amp; Conditions
-                        </button>
-                    </span>
-                </label>
-
                 <button
-                    disabled={!hasAgreed}
-                    className={`w-full ${hasAgreed ? 'cursor-pointer bg-brand-ink hover:bg-brand-blue-dark' : 'cursor-not-allowed bg-slate-300'} text-white font-semibold py-3 px-4 rounded-xl transition-colors`}
+                    className="w-full cursor-pointer bg-brand-ink hover:bg-brand-blue-dark text-white font-semibold py-3 px-4 rounded-xl transition-colors"
                 >Create account</button>
             </Form>
         </div>

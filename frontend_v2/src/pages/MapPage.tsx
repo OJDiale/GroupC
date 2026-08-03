@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useSearchParams } from "react-router";
 import {
-  Mountain, Map as MapIcon,
+  Map as MapIcon,
   History, Radio,
   Navigation2,
   AlertTriangle,
@@ -11,7 +11,8 @@ import {
   LocateFixed,
   MapPin,
   Check,
-  X as XIcon
+  X as XIcon,
+  CircleUserRound
 } from "lucide-react";
 import { Map, MapControls, MapMarker, MarkerContent, MarkerPopup, type MapRef } from "@/components/ui/map";
 import type { LngLatLike } from "maplibre-gl";
@@ -46,20 +47,15 @@ type Role = "ADMIN" | "PREMIUM" | "USER"
 
 export default function MapPage(): React.JSX.Element {
   usePageTitle("Map");
-  const styles = {
-    default: undefined,
-    openstreetmap: "https://tiles.openfreemap.org/styles/bright",
-    openstreetmap3d: "https://tiles.openfreemap.org/styles/liberty",
-  };
-
-  type StyleKey = keyof typeof styles;
+  // Only one map style is offered — the bright/light "Detailed" tileset.
+  // Both the 3D terrain style and the "Standard" option (which fell back to
+  // the underlying map component's own dark-mode pairing) were removed per
+  // a UX review; this keeps the driving map consistently readable.
+  const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/bright";
   const [coords, setCoords] = useState<LngLatLike | undefined>([28.1914, -25.7566]);
   const [locationSearched, setLocationSearched] = useState({ name: "", lon: 0, lat: 0 });
   const [dataSuggested, setDataSuggested] = useState([]);
-  const [style, setStyle] = useState<StyleKey>("default");
   const mapRef = useRef<MapRef>(null);
-  const is3D = style === "openstreetmap3d";
-  const selectedStyle = styles[style];
   const [report, setReport] = useState<boolean>(false)
   const [draggableMarker, setDraggableMarker] = useState({
     lng: (coords[0] as number),
@@ -397,12 +393,28 @@ export default function MapPage(): React.JSX.Element {
     setLocationSearched({ name, lon: destinationPin.lng, lat: destinationPin.lat });
     setSearchParams({ name, lon: String(destinationPin.lng), lat: String(destinationPin.lat) });
     setPickingDestination(false);
+    // A stale SafeMaster result from a previous destination must not keep
+    // being displayed once the driver picks a new one.
+    setSafeRouteResult(null);
+    setSelectedAltIndex(null);
 
     // Log the trip the same way a search-picked destination is logged.
     try {
-      const stPoint = await geocodeReverse(coords[1] as number, coords[0] as number);
-      const sl = stPoint?.formatted;
-      const logResult = await logUserDestination({ startLocation: sl, endLocation: name }, localStorage.getItem("token") || "");
+      const startLng = coords[0] as number;
+      const startLat = coords[1] as number;
+      const stPoint = await geocodeReverse(startLat, startLng);
+      const sl = stPoint?.formatted || `${startLat.toFixed(5)}, ${startLng.toFixed(5)}`;
+      const logResult = await logUserDestination(
+        {
+          startLocation: sl,
+          endLocation: name,
+          startLng,
+          startLat,
+          endLng: destinationPin.lng,
+          endLat: destinationPin.lat,
+        },
+        localStorage.getItem("token") || ""
+      );
       if (logResult.logId) setActiveTripId(logResult.logId);
     } catch (err) {
       console.error("Failed to log dropped-pin destination:", err);
@@ -434,12 +446,19 @@ export default function MapPage(): React.JSX.Element {
     <main className="relative h-screen w-full overflow-hidden font-sans antialiased text-slate-100">
   
       <header className="absolute top-3 left-3 right-3 sm:top-6 sm:left-6 sm:right-6 z-[1000] flex items-start gap-2 pointer-events-none flex-wrap">
-        <Link
-          to="/"
-          title="Back to Mapper home"
-          className="flex items-center justify-center size-10 sm:size-11 shrink-0 rounded-2xl bg-slate-900/90 backdrop-blur-2xl shadow-2xl border border-blue-500/30 pointer-events-auto text-slate-300 hover:text-blue-300 transition-colors"
+        <div
+          title="Mapper"
+          className="flex items-center justify-center size-10 sm:size-11 shrink-0 rounded-2xl bg-slate-900/90 backdrop-blur-2xl shadow-2xl border border-blue-500/30 pointer-events-auto text-slate-300"
         >
           <Logo size={20} showWordmark={false} ringClassName="text-slate-300" />
+        </div>
+
+        <Link
+          to="/account"
+          title="My account"
+          className="flex items-center justify-center size-10 sm:size-11 shrink-0 rounded-2xl bg-slate-900/90 backdrop-blur-2xl shadow-2xl border border-blue-500/30 pointer-events-auto text-slate-300 hover:text-blue-300 transition-colors"
+        >
+          <CircleUserRound size={20} />
         </Link>
 
         <div className="flex items-center justify-center size-10 sm:size-11 shrink-0 rounded-2xl bg-slate-900/90 backdrop-blur-2xl shadow-2xl border border-blue-500/30 pointer-events-auto">
@@ -458,14 +477,36 @@ export default function MapPage(): React.JSX.Element {
                   className="p-3 flex items-center gap-2 hover:bg-blue-900/40 cursor-pointer transition-colors border-b border-slate-800 last:border-0"
                   onClick={async () => {
                     const destinationName = data?.properties?.formatted;
+                    const destLon = data?.geometry?.coordinates[0];
+                    const destLat = data?.geometry?.coordinates[1];
                     setLocationSearched({
                       name: destinationName,
-                      lon: data?.geometry?.coordinates[0],
-                      lat: data?.geometry?.coordinates[1]
+                      lon: destLon,
+                      lat: destLat
                     })
-                    const stPoint = await geocodeReverse(coords[1] as number, coords[0] as number)
-                    const sl = stPoint?.formatted
-                    const logResult = await logUserDestination({ startLocation: sl, endLocation: destinationName }, localStorage.getItem("token") || "")
+                    // distinationLat/distinationLon (what routing actually
+                    // uses) are derived from searchParams, not
+                    // locationSearched — without this, picking a new
+                    // search result left the route still targeting
+                    // whatever destination was set previously.
+                    setSearchParams({ name: destinationName, lon: String(destLon), lat: String(destLat) });
+                    setSafeRouteResult(null);
+                    setSelectedAltIndex(null);
+                    const startLng = coords[0] as number;
+                    const startLat = coords[1] as number;
+                    const stPoint = await geocodeReverse(startLat, startLng)
+                    const sl = stPoint?.formatted || `${startLat.toFixed(5)}, ${startLng.toFixed(5)}`
+                    const logResult = await logUserDestination(
+                      {
+                        startLocation: sl,
+                        endLocation: destinationName,
+                        startLng,
+                        startLat,
+                        endLng: destLon,
+                        endLat: destLat,
+                      },
+                      localStorage.getItem("token") || ""
+                    )
                     if (logResult.logId) setActiveTripId(logResult.logId)
                   }}
                 >
@@ -533,15 +574,24 @@ export default function MapPage(): React.JSX.Element {
         <div className="absolute top-20 left-3 right-3 sm:top-24 sm:left-6 sm:right-auto z-[999] sm:w-72 sm:max-w-xs bg-slate-900/95 border border-blue-500/30 rounded-2xl shadow-2xl backdrop-blur-xl pointer-events-auto overflow-hidden">
           {/* Risk level header */}
           <div
-            className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest flex items-center gap-2
+            className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest flex items-center justify-between gap-2
               ${safeRouteResult.riskLevel === "SAFE"
                 ? "bg-green-600/20 text-green-400"
                 : safeRouteResult.riskLevel === "WARNING"
                 ? "bg-yellow-600/20 text-yellow-400"
                 : "bg-red-600/20 text-red-400"}`}
           >
-            <span className="inline-block w-2 h-2 rounded-full bg-current animate-pulse" />
-            {safeRouteResult.riskLevel} · Score {safeRouteResult.riskScore.toFixed(0)}/100
+            <span className="flex items-center gap-2 min-w-0">
+              <span className="inline-block w-2 h-2 rounded-full bg-current animate-pulse shrink-0" />
+              <span className="truncate">{safeRouteResult.riskLevel} · Danger Score {safeRouteResult.riskScore.toFixed(0)}/100</span>
+            </span>
+            <button
+              onClick={() => { setSafeRouteResult(null); setSelectedAltIndex(null); }}
+              title="Back to default route"
+              className="shrink-0 text-current/70 hover:text-current transition-colors"
+            >
+              <XIcon size={14} />
+            </button>
           </div>
 
           {/* Best route */}
@@ -615,7 +665,7 @@ export default function MapPage(): React.JSX.Element {
           ref={mapRef}
           center={coords}
           zoom={3}
-          styles={selectedStyle ? { light: selectedStyle, dark: selectedStyle } : undefined}
+          styles={{ light: MAP_STYLE_URL, dark: MAP_STYLE_URL }}
         >
           {disPlacesToAvoid && <Layer geojsonData={avoidanceGeoJSON} />} 
 
@@ -811,19 +861,6 @@ export default function MapPage(): React.JSX.Element {
             <AlertTriangle size={16} />
             <span className="hidden sm:inline">REPORT DANGER</span>
           </Button>
-
-          <div className="flex items-center gap-1.5 bg-blue-950/40 px-2 sm:px-3 py-1.5 rounded-lg border border-white/5 min-w-0">
-            <Mountain size={14} className="text-blue-400 shrink-0" />
-            <select
-              value={style}
-              onChange={(e) => setStyle(e.target.value as StyleKey)}
-              className="bg-transparent text-white text-[9px] sm:text-[10px] font-bold uppercase outline-none cursor-pointer min-w-0 max-w-[4.5rem] sm:max-w-none"
-            >
-              <option value="default">Standard</option>
-              <option value="openstreetmap">Detailed</option>
-              <option value="openstreetmap3d">3D Terrain</option>
-            </select>
-          </div>
 
           <Button
             onClick={() => { subscribe() }}

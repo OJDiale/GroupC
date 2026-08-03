@@ -381,11 +381,17 @@ export async function generateSafeRoute(
         // any other hazard existed nearby, which is exactly the case for
         // hazards close to the user's own starting point (a dense local
         // cluster), while long trips rarely pass near unrelated hazards.
+        //
+        // Must be a COMPLETE clearance of the blocking hazards (0 hits),
+        // not merely fewer than before — a detour that still clips 2 of 3
+        // hazards it was built to avoid is not "avoiding" them, and
+        // offering it as a suggestion is exactly what let suggestions
+        // keep routing through active hazards.
         const blockingHits = scoreRoutePath(
           item.geojson.geometry.coordinates,
           blockingHazards
         ).incidentsOnRoute;
-        if (blockingHits >= blockingHazards.length) continue;
+        if (blockingHits > 0) continue;
         const label =
           scoring.incidentsOnRoute === 0
             ? "Safer detour (clear of incidents)"
@@ -865,6 +871,13 @@ export interface DestinationLog {
 export interface NewDestinationPayload {
   startLocation: string;
   endLocation: string;
+  // Required by the backend — omitting these used to make every
+  // destination-log attempt fail with a 400 that the caller never
+  // surfaced, so drivers saw destinations silently "not save."
+  startLng: number;
+  startLat: number;
+  endLng: number;
+  endLat: number;
 }
 
 const getHeaders = (token: string) => ({

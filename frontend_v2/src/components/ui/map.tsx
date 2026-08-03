@@ -16,7 +16,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { X, Minus, Plus, Locate, Maximize, Loader2 } from "lucide-react";
+import { X, Minus, Plus, Locate, Maximize, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -144,11 +144,41 @@ type MapProps = {
 
 function DefaultLoader() {
   return (
-    <div className="absolute inset-0 flex items-center justify-center">
+    <div className="absolute inset-0 flex items-center justify-center bg-slate-950">
       <div className="flex gap-1">
-        <span className="size-1.5 rounded-full bg-muted-foreground/60 animate-pulse" />
-        <span className="size-1.5 rounded-full bg-muted-foreground/60 animate-pulse [animation-delay:150ms]" />
-        <span className="size-1.5 rounded-full bg-muted-foreground/60 animate-pulse [animation-delay:300ms]" />
+        <span className="size-1.5 rounded-full bg-slate-400 animate-pulse" />
+        <span className="size-1.5 rounded-full bg-slate-400 animate-pulse [animation-delay:150ms]" />
+        <span className="size-1.5 rounded-full bg-slate-400 animate-pulse [animation-delay:300ms]" />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Shown when the map style/tiles fail to load within a reasonable time
+ * (network failure, CDN outage) or MapLibre emits an 'error' event before
+ * ever finishing its initial load. Previously there was no feedback at
+ * all here — just the (low-contrast) DefaultLoader spinning forever over
+ * MapLibre's default black canvas, which read as "the map is just black."
+ */
+function MapLoadError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-slate-950 px-6">
+      <div className="text-center space-y-3 max-w-xs">
+        <div className="flex justify-center">
+          <div className="size-11 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+            <AlertTriangle className="text-red-400" size={20} />
+          </div>
+        </div>
+        <p className="text-sm font-semibold text-slate-100">Couldn't load the map</p>
+        <p className="text-xs text-slate-400">Check your connection and try again.</p>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors"
+        >
+          <RefreshCw size={14} /> Retry
+        </button>
       </div>
     </div>
   );
@@ -181,6 +211,12 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
   const [mapInstance, setMapInstance] = useState<MapLibreGL.Map | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isStyleLoaded, setIsStyleLoaded] = useState(false);
+  // If the style/tiles never finish loading (network failure, CDN outage,
+  // CORS issue) there was previously no feedback at all — the map just
+  // stayed on a near-invisible loading indicator over MapLibre's default
+  // black canvas forever, which reads as "the map is just black/broken."
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const currentStyleRef = useRef<MapStyleOption | null>(null);
   const styleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const internalUpdateRef = useRef(false);
@@ -213,6 +249,8 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
   useEffect(() => {
     if (!containerRef.current) return;
 
+    setLoadFailed(false);
+
     const initialStyle =
       resolvedTheme === "dark" ? mapStyles.dark : mapStyles.light;
     currentStyleRef.current = initialStyle;
@@ -240,7 +278,23 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
         }
       }, 100);
     };
-    const loadHandler = () => setIsLoaded(true);
+    const loadHandler = () => {
+      setIsLoaded(true);
+      setLoadFailed(false);
+      clearTimeout(loadTimeoutId);
+    };
+
+    // A style/tile fetch failure before the map has ever finished loading
+    // (bad network, CDN outage, CORS) previously left the user staring at
+    // a near-invisible loading indicator forever with zero feedback.
+    // Individual errors AFTER a successful load (e.g. one dropped tile
+    // request) are common and recoverable, so those are ignored.
+    const errorHandler = () => {
+      if (!map.loaded()) setLoadFailed(true);
+    };
+    const loadTimeoutId = setTimeout(() => {
+      if (!map.loaded()) setLoadFailed(true);
+    }, 12000);
 
     // Viewport change handler - skip if triggered by internal update
     const handleMove = () => {
@@ -251,19 +305,27 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     map.on("load", loadHandler);
     map.on("styledata", styleDataHandler);
     map.on("move", handleMove);
+    map.on("error", errorHandler);
     setMapInstance(map);
 
     return () => {
       clearStyleTimeout();
+      clearTimeout(loadTimeoutId);
       map.off("load", loadHandler);
       map.off("styledata", styleDataHandler);
       map.off("move", handleMove);
+      map.off("error", errorHandler);
       map.remove();
       setIsLoaded(false);
       setIsStyleLoaded(false);
       setMapInstance(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retryKey]);
+
+  const retryLoad = useCallback(() => {
+    setLoadFailed(false);
+    setRetryKey((k) => k + 1);
   }, []);
 
   // Sync controlled viewport to map
@@ -324,7 +386,8 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
         ref={containerRef}
         className={cn("relative w-full h-full", className)}
       >
-        {!isLoaded && <DefaultLoader />}
+        {!isLoaded && loadFailed && <MapLoadError onRetry={retryLoad} />}
+        {!isLoaded && !loadFailed && <DefaultLoader />}
         {/* SSR-safe: children render only when map is loaded on client */}
         {mapInstance && children}
       </div>

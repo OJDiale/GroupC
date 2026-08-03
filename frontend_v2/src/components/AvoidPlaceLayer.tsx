@@ -185,66 +185,95 @@ export default function Layer({ geojsonData }: CustomLayerProps) {
   useEffect(() => {
     if (!map || !isLoaded) return;
 
-    if (!map.getSource(sourceId)) {
-      map.addSource(sourceId, {
-        type: "geojson",
-        data: geojsonData,
-      });
-    }
+    // MapLibre's getLayer/getSource/etc. read from the map's internal
+    // style object, which is briefly undefined while a style reload is in
+    // progress (or after the map itself has been torn down). Calling them
+    // during that window throws "Cannot read properties of undefined
+    // (reading 'getLayer')" — an uncaught exception here crashes the whole
+    // app (React Router's default error boundary). map.tsx's
+    // MapClusterLayer already learned this the hard way; mirroring that
+    // same try/catch guard here.
+    try {
+      if (!map.getSource(sourceId)) {
+        map.addSource(sourceId, {
+          type: "geojson",
+          data: geojsonData,
+        });
+      }
 
-    if (!map.getLayer(layerId)) {
-      map.addLayer({
-        id: layerId,
-        type: "circle",
-        source: sourceId,
-        paint: {
-        "circle-radius": [
-          "interpolate",
-          ["linear"],
-          ["zoom"],
-          3, 3,
-          8, 6,
-          12, 12,
-          16, 20,
-          18, 28
-        ],
+      if (!map.getLayer(layerId)) {
+        map.addLayer({
+          id: layerId,
+          type: "circle",
+          source: sourceId,
+          paint: {
+          "circle-radius": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            3, 3,
+            8, 6,
+            12, 12,
+            16, 20,
+            18, 28
+          ],
 
-        // Dark red fill
-        "circle-color": "#7f1d1d",
+          // Dark red fill
+          "circle-color": "#7f1d1d",
 
-        // Slightly more visible fill
-        "circle-opacity": 0.45,
+          // Slightly more visible fill
+          "circle-opacity": 0.45,
 
-        // Darker border
-        "circle-stroke-width": 2,
-        "circle-stroke-color": "#450a0a",
+          // Darker border
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#450a0a",
 
-        // Border a bit more visible
-        "circle-stroke-opacity": 0.8,
-      },
-        layout: {
-          visibility: isLayerVisible ? "visible" : "none",
+          // Border a bit more visible
+          "circle-stroke-opacity": 0.8,
         },
-      });
+          layout: {
+            visibility: isLayerVisible ? "visible" : "none",
+          },
+        });
+      }
+    } catch {
+      // Style was mid-reload or the map was already torn down — nothing
+      // to do here, the next successful effect run will retry.
     }
 
     return () => {
-      if (map.getLayer(layerId)) map.removeLayer(layerId);
-      if (map.getSource(sourceId)) map.removeSource(sourceId);
+      try {
+        if (map.getLayer(layerId)) map.removeLayer(layerId);
+        if (map.getSource(sourceId)) map.removeSource(sourceId);
+      } catch {
+        // ignore — map/style may already be gone by the time this runs
+      }
     };
   }, [map, isLoaded]);
 
   // 2. DATA UPDATE: This handles the communication when Parent state changes
   useEffect(() => {
-    if (map && isLoaded && map.getSource(sourceId)) {
-      const source = map.getSource(sourceId) as maplibregl.GeoJSONSource;
-      source.setData(geojsonData);
+    if (!map || !isLoaded) return;
+    try {
+      const source = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
+      if (source) {
+        source.setData(geojsonData);
+      }
+    } catch {
+      // ignore — see note above
     }
   }, [geojsonData, map, isLoaded]);
 
   // 3. Hover Logic
   useEffect(() => {
-    if (!map || !isLoaded || !map.getLayer(layerId)) return;
+    if (!map || !isLoaded) return;
+    let hasLayer = false;
+    try {
+      hasLayer = Boolean(map.getLayer(layerId));
+    } catch {
+      hasLayer = false;
+    }
+    if (!hasLayer) return;
 
     const onEnter = () => (map.getCanvas().style.cursor = "pointer");
     const onLeave = () => {
@@ -272,9 +301,13 @@ export default function Layer({ geojsonData }: CustomLayerProps) {
 
   const toggleLayer = () => {
     if (!map) return;
-    const nextVisibility = isLayerVisible ? "none" : "visible";
-    map.setLayoutProperty(layerId, "visibility", nextVisibility);
-    setIsLayerVisible(!isLayerVisible);
+    try {
+      const nextVisibility = isLayerVisible ? "none" : "visible";
+      map.setLayoutProperty(layerId, "visibility", nextVisibility);
+      setIsLayerVisible(!isLayerVisible);
+    } catch {
+      // ignore — see note above
+    }
   };
 
   return (

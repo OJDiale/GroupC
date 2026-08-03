@@ -14,6 +14,7 @@ import AccountHolder , {loader as accountHolderLoader} from "./pages/AccountHold
 import { loggIn } from "./lib/utils.ts"
 import HistoralEvents from "./pages/HistoricalEvents.tsx"
 import CurrentEventMap from "./pages/CurrentEventMap.tsx"
+import MapErrorBoundary from "./pages/MapErrorBoundary.tsx"
 import AdminPage from "./pages/admin._pages/Admin.tsx"
 import AdminLocationsPage from "./pages/admin._pages/AdminLocationsPage.tsx"
 // import AdminIncidentsPage from './pages/admin._pages/AdminIncidentsPage.tsx'
@@ -34,8 +35,13 @@ import NotFoundPage from './pages/NotFoundPage.tsx'
 //sekelton for app
 
 function AdminLoader(){
-
-    const isAdmin = Boolean(localStorage.getItem("isAdmin"))
+    // BUG FIX: `isAdmin` is stored via JSON.stringify(isAdmin), so a
+    // non-admin's value is the literal string "false" — Boolean("false")
+    // evaluates to true (any non-empty string is truthy in JS), which
+    // meant this check never actually rejected anyone who had ever logged
+    // in. Every driver could reach every admin route by typing the URL
+    // directly. Comparing against the exact serialized string fixes it.
+    const isAdmin = localStorage.getItem("isAdmin") === "true"
     if(!isAdmin){
         throw redirect("/login?message=access denied")
     }
@@ -97,6 +103,7 @@ function App() {
           <Route
                path="map"
                element={<MapLayout/>}
+               errorElement={<MapErrorBoundary/>}
                loader={()=>loggIn("login first to use map")}
           >
               <Route
