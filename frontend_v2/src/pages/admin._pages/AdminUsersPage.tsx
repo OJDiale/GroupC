@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Trash2, KeyRound, AlertTriangle, X, Filter as FilterIcon } from 'lucide-react';
+import { Trash2, KeyRound, AlertTriangle, X, Filter as FilterIcon, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminShell from '@/components/AdminShell';
 import { usePageTitle } from '@/lib/usePageTitle';
@@ -197,14 +197,24 @@ export default function DriverManagement() {
     <AdminShell
       title="Driver Management"
       subtitle="Reset passwords and remove driver accounts."
-      headerActions={
-        <button
-          onClick={() => setIsFilterOpen(!isFilterOpen)}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
-        >
-          <FilterIcon size={14} /> Filter
-        </button>
-      }
+       headerActions={<div className="flex gap-2">
+         <button
+           onClick={() => downloadReportPdf({
+             title: 'Driver Management Report', filename: 'driver-management-report.pdf',
+             columns: ['Driver ID', 'User ID', 'First name', 'Last name', 'Username', 'Email', 'Created at', 'Last login'],
+             rows: filteredDrivers.map((driver) => [driver.driver_id, driver.user_id, driver.firstname, driver.lastname, driver.username, driver.email, driver.date_created, driver.last_login]),
+           })}
+           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
+         >
+           <Download size={14} /> Download PDF
+         </button>
+         <button
+           onClick={() => setIsFilterOpen(!isFilterOpen)}
+           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
+         >
+           <FilterIcon size={14} /> Filter
+         </button>
+       </div>}
     >
       <input
         type="text"
@@ -216,7 +226,7 @@ export default function DriverManagement() {
 
       {isFilterOpen && (
         <div className="bg-white border border-brand-border rounded-2xl p-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div>
               <label className={labelClass}>Driver ID</label>
               <input type="number" placeholder="Driver ID" value={filters.driverId} onChange={(e) => setFilters((prev) => ({ ...prev, driverId: e.target.value }))} className={inputClass} />
