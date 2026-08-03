@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { RefreshCw, ArrowUpDown, Filter as FilterIcon } from 'lucide-react';
+import { formatDateTime } from '@/lib/formatDate';
 import ReportExportButtons from '@/components/ReportExportButtons';
 import { usePageTitle } from '@/lib/usePageTitle';
 import { API_BASE_URL } from "@/lib/apiConfig";
@@ -80,7 +81,7 @@ export default function AdminSafetyReportPage() {
   return (
     <div className="space-y-4">
       <p className="text-brand-muted text-sm">
-        {report ? `Generated ${new Date(report.generatedAt).toLocaleString()}` : "Generating report…"}
+        {report ? `Generated ${formatDateTime(report.generatedAt)}` : "Generating report…"}
       </p>
 
       <div className="flex items-center justify-between flex-wrap gap-3">

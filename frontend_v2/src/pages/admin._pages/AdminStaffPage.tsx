@@ -49,7 +49,6 @@ export default function AdminStaffPage() {
     <div className="space-y-6">
       <p className="text-brand-muted text-sm max-w-2xl mx-auto text-center">
         Traffic Authority, Security Agency, Data Analyst and additional System Administrator accounts are created here.
-        Drivers self-register from the public sign-up page — this is only for the roles you manage directly.
       </p>
 
       <form onSubmit={submit} className="bg-white border border-brand-border rounded-2xl p-6 space-y-3 max-w-lg mx-auto">

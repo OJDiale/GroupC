@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { RefreshCw, ArrowUpDown, Filter as FilterIcon } from 'lucide-react';
 import AdminShell from '@/components/AdminShell';
 import ReportExportButtons from '@/components/ReportExportButtons';
+import { formatDateTime } from '@/lib/formatDate';
 import { usePageTitle } from '@/lib/usePageTitle';
 import { API_BASE_URL } from "@/lib/apiConfig";
 
@@ -185,7 +186,7 @@ export default function AdminHazardResponseReportPage({ embedded }: AdminHazardR
                     {' → '}
                     <span className={`capitalize font-semibold ${r.newStatus === 'resolved' ? 'text-green-600' : 'text-amber-600'}`}>{r.newStatus}</span>
                   </td>
-                  <td className="p-2 text-brand-muted">{new Date(r.resolvedAt).toLocaleString()}</td>
+                  <td className="p-2 text-brand-muted">{formatDateTime(r.resolvedAt)}</td>
                 </tr>
               ))}
             </tbody>

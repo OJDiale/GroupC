@@ -3,6 +3,7 @@ import { Download, Filter as FilterIcon, ChevronDown } from 'lucide-react';
 import { usePageTitle } from '@/lib/usePageTitle';
 import { API_BASE_URL } from "@/lib/apiConfig";
 import { downloadReportPdf } from '@/lib/pdfReport';
+import { formatDateTime } from '@/lib/formatDate';
 
 /**
  * BACKEND ENDPOINT (Express + MySQL) — confirmed against destination.routes.js
@@ -269,7 +270,7 @@ const LocationsPage: React.FC = () => {
                             <td className="p-2">{dest.endLocation || 'N/A'}</td>
                             <td className="p-2">{dest.hazardBypassed}</td>
                             <td className="p-2">
-                              {dest.createdAt ? new Date(dest.createdAt).toLocaleString() : 'N/A'}
+                              {formatDateTime(dest.createdAt)}
                             </td>
                           </tr>
                         ))}

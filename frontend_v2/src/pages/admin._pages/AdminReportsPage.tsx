@@ -4,18 +4,9 @@ import { usePageTitle } from '@/lib/usePageTitle';
 import { API_BASE_URL } from "@/lib/apiConfig";
 import { downloadReportPdf } from '@/lib/pdfReport';
 import Pagination from '@/components/Pagination';
+import { formatDateTime } from '@/lib/formatDate';
 
 const PAGE_SIZE = 7;
-
-function formatReportedAt(dateStr: string): string {
-  const d = new Date(dateStr);
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const yy = String(d.getFullYear()).slice(-2);
-  const hh = String(d.getHours()).padStart(2, '0');
-  const min = String(d.getMinutes()).padStart(2, '0');
-  return `${dd}/${mm}/${yy} ~ ${hh}:${min}`;
-}
 
 /**
  * BACKEND ENDPOINTS (Express + MySQL) — confirmed against hazards.route.js
@@ -315,37 +306,45 @@ export default function HazardReports() {
                       )}
                     </td>
                     <td className="p-2">
-                      {r.createdAt ? formatReportedAt(r.createdAt) : 'N/A'}
+                      {formatDateTime(r.createdAt)}
                     </td>
                     <td className="p-2 whitespace-nowrap">
                       {editingId === r.id ? (
                         <>
                           <button
                             onClick={() => saveHazardType(r.id)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-ink text-white text-[11px] font-bold hover:bg-brand-blue-dark mr-1.5"
+                            title="save"
+                            aria-label="save"
+                            className="inline-flex items-center justify-center p-1.5 rounded-lg bg-brand-ink text-white hover:bg-brand-blue-dark mr-1.5"
                           >
-                            <Check size={11} /> Save
+                            <Check size={13} />
                           </button>
                           <button
                             onClick={cancelEdit}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-brand-border text-brand-muted text-[11px] font-bold hover:text-brand-ink"
+                            title="cancel"
+                            aria-label="cancel"
+                            className="inline-flex items-center justify-center p-1.5 rounded-lg border border-brand-border text-brand-muted hover:text-brand-ink"
                           >
-                            <X size={11} /> Cancel
+                            <X size={13} />
                           </button>
                         </>
                       ) : (
                         <>
                           <button
                             onClick={() => startEdit(r)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-blue-soft text-brand-blue text-[11px] font-bold hover:bg-brand-blue hover:text-white mr-1.5 transition-colors"
+                            title="edit"
+                            aria-label="edit"
+                            className="inline-flex items-center justify-center p-1.5 rounded-lg bg-brand-blue-soft text-brand-blue hover:bg-brand-blue hover:text-white mr-1.5 transition-colors"
                           >
-                            <Pencil size={11} /> Edit Type
+                            <Pencil size={13} />
                           </button>
                           <button
                             onClick={() => deleteReport(r.id)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-50 text-red-600 text-[11px] font-bold hover:bg-red-600 hover:text-white transition-colors"
+                            title="delete"
+                            aria-label="delete"
+                            className="inline-flex items-center justify-center p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-colors"
                           >
-                            <Trash2 size={11} /> Delete
+                            <Trash2 size={13} />
                           </button>
                         </>
                       )}

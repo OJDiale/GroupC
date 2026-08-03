@@ -5,6 +5,7 @@ import { usePageTitle } from '@/lib/usePageTitle';
 import { API_BASE_URL } from "@/lib/apiConfig";
 import { downloadReportPdf } from '@/lib/pdfReport';
 import Pagination from '@/components/Pagination';
+import { formatDateTime } from '@/lib/formatDate';
 
 const PAGE_SIZE = 7;
 
@@ -209,10 +210,12 @@ export default function DriverManagement() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <input
           type="text"
+          name="driver-quick-search"
           placeholder="Quick search by username"
           value={filters.username}
           onChange={(e) => setFilters((prev) => ({ ...prev, username: e.target.value }))}
           className={`${inputClass} max-w-sm`}
+          autoComplete="off"
         />
         <div className="flex gap-2">
           <button
@@ -301,23 +304,27 @@ export default function DriverManagement() {
                       <td className="p-2">{d.username}</td>
                       <td className="p-2">{d.email}</td>
                       <td className="p-2">
-                        {d.date_created ? new Date(d.date_created).toLocaleString() : 'N/A'}
+                        {formatDateTime(d.date_created)}
                       </td>
                       <td className="p-2">
-                        {d.last_login ? new Date(d.last_login).toLocaleString() : 'Never'}
+                        {d.last_login ? formatDateTime(d.last_login) : 'Never'}
                       </td>
                       <td className="p-2 whitespace-nowrap">
                         <button
                           onClick={() => togglePasswordPanel(d.user_id)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-blue-soft text-brand-blue text-[11px] font-bold hover:bg-brand-blue hover:text-white mr-1.5 transition-colors"
+                          title="password"
+                          aria-label="password"
+                          className="inline-flex items-center justify-center p-1.5 rounded-lg bg-brand-blue-soft text-brand-blue hover:bg-brand-blue hover:text-white mr-1.5 transition-colors"
                         >
-                          <KeyRound size={11} /> Password
+                          <KeyRound size={13} />
                         </button>
                         <button
                           onClick={() => setDeleteModal({ isOpen: true, targetDriver: d })}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-50 text-red-600 text-[11px] font-bold hover:bg-red-600 hover:text-white transition-colors"
+                          title="delete"
+                          aria-label="delete"
+                          className="inline-flex items-center justify-center p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-colors"
                         >
-                          <Trash2 size={11} /> Delete
+                          <Trash2 size={13} />
                         </button>
                       </td>
                     </tr>
@@ -325,11 +332,20 @@ export default function DriverManagement() {
                     {openPasswordPanel[d.user_id] && (
                       <tr className="bg-brand-bg/60">
                         <td colSpan={9} className="p-4">
-                          <div className="flex flex-wrap gap-3 items-end">
+                          {/* Its own <form> boundary + autoComplete="new-password" stops
+                              Chrome's page-wide credential-autofill heuristic from reaching
+                              into the unrelated search box above and filling it with the
+                              admin's own saved login. */}
+                          <form
+                            onSubmit={(e) => { e.preventDefault(); updatePassword(d.user_id); }}
+                            className="flex flex-wrap gap-3 items-end"
+                          >
                             <div>
                               <label className={labelClass}>New Password</label>
                               <input
                                 type="password"
+                                name="new-password"
+                                autoComplete="new-password"
                                 placeholder="New password"
                                 value={passwordInputs[d.user_id]?.password || ''}
                                 onChange={(e) => handlePasswordInput(d.user_id, 'password', e.target.value)}
@@ -340,6 +356,8 @@ export default function DriverManagement() {
                               <label className={labelClass}>Confirm Password</label>
                               <input
                                 type="password"
+                                name="confirm-password"
+                                autoComplete="new-password"
                                 placeholder="Confirm password"
                                 value={passwordInputs[d.user_id]?.confirm || ''}
                                 onChange={(e) => handlePasswordInput(d.user_id, 'confirm', e.target.value)}
@@ -347,18 +365,19 @@ export default function DriverManagement() {
                               />
                             </div>
                             <button
-                              onClick={() => updatePassword(d.user_id)}
+                              type="submit"
                               className="h-10 px-4 rounded-lg bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
                             >
                               Save
                             </button>
                             <button
+                              type="button"
                               onClick={() => togglePasswordPanel(d.user_id)}
                               className="h-10 px-4 rounded-lg border border-brand-border text-sm font-semibold text-brand-muted hover:text-brand-ink"
                             >
                               Cancel
                             </button>
-                          </div>
+                          </form>
                         </td>
                       </tr>
                     )}

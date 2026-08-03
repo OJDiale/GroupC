@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { RefreshCw, ArrowUpDown, Filter as FilterIcon } from 'lucide-react';
 import AdminShell from '@/components/AdminShell';
 import ReportExportButtons from '@/components/ReportExportButtons';
+import { formatDateTime } from '@/lib/formatDate';
 import Pagination from '@/components/Pagination';
 import { usePageTitle } from '@/lib/usePageTitle';
 import { API_BASE_URL } from "@/lib/apiConfig";
@@ -188,8 +189,8 @@ export default function AdminTripReportPage({ embedded }: AdminTripReportPagePro
                     <td className="p-2">{t.startLocation}</td>
                     <td className="p-2">{t.endLocation}</td>
                     <td className="p-2">{formatDuration(t.durationSeconds)}</td>
-                    <td className="p-2 text-brand-muted">{new Date(t.startedAt).toLocaleString()}</td>
-                    <td className="p-2 text-brand-muted">{new Date(t.endedAt).toLocaleString()}</td>
+                    <td className="p-2 text-brand-muted">{formatDateTime(t.startedAt)}</td>
+                    <td className="p-2 text-brand-muted">{formatDateTime(t.endedAt)}</td>
                   </tr>
                 ))}
               </tbody>
