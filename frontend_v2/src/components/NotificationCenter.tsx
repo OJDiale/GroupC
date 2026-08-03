@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Bell, Check } from "lucide-react";
+import { API_BASE_URL } from "@/lib/apiConfig";
 
 const CONFIG = {
-  API_BASE_URL: (window as unknown as { CONFIG?: { API_BASE_URL?: string } }).CONFIG?.API_BASE_URL || "https://mapper-backend-brkn.onrender.com",
+  API_BASE_URL,
 };
 
 interface Notification {

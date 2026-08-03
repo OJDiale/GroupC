@@ -1,7 +1,7 @@
 
 import './index.css'
 
-import { Route, RouterProvider  ,createBrowserRouter , createRoutesFromElements,redirect} from "react-router"
+import { Route, RouterProvider  ,createBrowserRouter , createRoutesFromElements,redirect, Navigate} from "react-router"
 import Layout from './components/Layout.tsx'
 import HomePage from './pages/HomePage.tsx'
 import MapLayout from './pages/MapPage.tsx'
@@ -14,7 +14,7 @@ import AccountHolder , {loader as accountHolderLoader} from "./pages/AccountHold
 import { loggIn } from "./lib/utils.ts"
 import HistoralEvents from "./pages/HistoricalEvents.tsx"
 import CurrentEventMap from "./pages/CurrentEventMap.tsx"
-import AdminPage from "./pages/admin._pages/Admin.tsx"
+import AdminSidebarLayout from "./components/AdminSidebarLayout.tsx"
 import AdminLocationsPage from "./pages/admin._pages/AdminLocationsPage.tsx"
 // import AdminIncidentsPage from './pages/admin._pages/AdminIncidentsPage.tsx'
 import AdminReportsPage from './pages/admin._pages/AdminReportsPage.tsx'
@@ -118,43 +118,21 @@ function App() {
           <Route
             path="admin"
             loader={AdminLoader}
-            element={<AdminPage/>}
-        />
-        <Route
-          path ="admin_locations"
-          loader={AdminLoader}
-          element={<AdminLocationsPage/>}
-        />
-        {/* <Route
-          path ="incidents.html"
-          loader={AdminLoader}
-          element={<AdminIncidentsPage/>}
-        /> */}
-         <Route
-          path ="reports.html"
-          loader={AdminLoader}
-          element={<AdminReportsPage/>}
-        />
-        {/* <Route
-          path ="saved_routes.html"
-          loader={AdminLoader}
-          element={<AdminSavedRoutesPage/>}
-        /> */}
-        <Route
-          path ="users.html"
-          loader={AdminLoader}
-          element={<AdminUsersPage/>}
-        />
-        <Route
-          path="admin_staff"
-          loader={AdminLoader}
-          element={<AdminStaffPage/>}
-        />
-        <Route
-          path="admin_safety_report"
-          loader={AdminLoader}
-          element={<AdminSafetyReportPage/>}
-        />
+            element={<AdminSidebarLayout/>}
+        >
+            <Route index element={<Navigate to="/admin/driver-management" replace />} />
+            <Route path="driver-management" element={<AdminUsersPage/>} />
+            <Route path="destinations" element={<AdminLocationsPage/>} />
+            <Route path="hazard-reports" element={<AdminReportsPage/>} />
+            <Route path="staff-accounts" element={<AdminStaffPage/>} />
+            <Route path="safety-report" element={<AdminSafetyReportPage/>} />
+            <Route path="trip-completion-report" element={<AdminTripReportPage embedded/>} />
+            <Route path="hazard-response-report" element={<AdminHazardResponseReportPage embedded/>} />
+            <Route path="live-risk-intelligence" element={<AiCandidatesPage embedded/>} />
+        </Route>
+        {/* Standalone versions of the 3 shared report pages, unchanged — still
+            used by Data Analyst / Traffic Authority / Security Agency
+            dashboards, which don't get the admin sidebar. */}
         <Route
           path="ai-candidates"
           loader={roleLoader("admin", "data_analyst")}

@@ -3,9 +3,10 @@ import { useNavigate, Link } from "react-router";
 import { LogOut, MapPin, Check, RotateCcw, ArrowLeft, ShieldAlert } from "lucide-react";
 import { Map, MapMarker, MarkerContent } from "@/components/ui/map";
 import Logo from "@/components/Logo";
+import { API_BASE_URL } from "@/lib/apiConfig";
 
 const CONFIG = {
-  API_BASE_URL: (window as unknown as { CONFIG?: { API_BASE_URL?: string } }).CONFIG?.API_BASE_URL || "https://mapper-backend-brkn.onrender.com",
+  API_BASE_URL,
 };
 
 interface HazardOption {

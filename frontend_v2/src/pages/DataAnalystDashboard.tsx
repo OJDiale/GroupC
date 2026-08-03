@@ -5,9 +5,10 @@ import { Map, MapMarker, MarkerContent, MarkerPopup } from "@/components/ui/map"
 import Logo from "@/components/Logo";
 import ReportExportButtons from "@/components/ReportExportButtons";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { API_BASE_URL } from "@/lib/apiConfig";
 
 const CONFIG = {
-  API_BASE_URL: (window as unknown as { CONFIG?: { API_BASE_URL?: string } }).CONFIG?.API_BASE_URL || "https://mapper-backend-brkn.onrender.com",
+  API_BASE_URL,
 };
 
 interface Hotspot {

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { UserPlus } from 'lucide-react';
 import { registerStaffAccount } from '../../database/auth.js';
-import AdminShell from '@/components/AdminShell';
 import { usePageTitle } from '@/lib/usePageTitle';
 
 const ROLES = [
@@ -11,7 +10,7 @@ const ROLES = [
   { value: 'data_analyst', label: 'Data Analyst' },
 ];
 
-const inputClass = "w-full h-11 px-3 bg-white border border-brand-border rounded-lg text-sm text-brand-ink outline-none focus:ring-2 focus:ring-brand-blue/40 focus:border-brand-blue";
+const inputClass = "w-full h-9 px-3 bg-white border border-brand-border rounded-lg text-sm text-brand-ink outline-none focus:ring-2 focus:ring-brand-blue/40 focus:border-brand-blue";
 const labelClass = "text-[11px] font-bold uppercase tracking-wide text-brand-muted block mb-1";
 
 export default function AdminStaffPage() {
@@ -47,13 +46,13 @@ export default function AdminStaffPage() {
   };
 
   return (
-    <AdminShell title="Staff Accounts" subtitle="Create logins for the roles you manage directly.">
-      <p className="text-brand-muted text-sm max-w-2xl -mt-2">
+    <div className="space-y-6">
+      <p className="text-brand-muted text-sm max-w-2xl mx-auto text-center">
         Traffic Authority, Security Agency, Data Analyst and additional System Administrator accounts are created here.
         Drivers self-register from the public sign-up page — this is only for the roles you manage directly.
       </p>
 
-      <form onSubmit={submit} className="bg-white border border-brand-border rounded-2xl p-6 space-y-4 max-w-lg">
+      <form onSubmit={submit} className="bg-white border border-brand-border rounded-2xl p-6 space-y-3 max-w-lg mx-auto">
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={labelClass}>First name</label>
@@ -83,17 +82,19 @@ export default function AdminStaffPage() {
           </select>
         </div>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark disabled:opacity-50"
-        >
-          <UserPlus size={16} /> {submitting ? 'Creating…' : 'Create Account'}
-        </button>
+        <div className="flex justify-center pt-1">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark disabled:opacity-50"
+          >
+            <UserPlus size={16} /> {submitting ? 'Creating…' : 'Create Account'}
+          </button>
+        </div>
       </form>
 
       {created.length > 0 && (
-        <div className="max-w-lg">
+        <div className="max-w-lg mx-auto">
           <h2 className="text-sm font-bold uppercase tracking-wide text-brand-muted mb-2">
             Created this session
           </h2>
@@ -114,6 +115,6 @@ export default function AdminStaffPage() {
           {toast.msg}
         </div>
       )}
-    </AdminShell>
+    </div>
   );
 }

@@ -1,7 +1,21 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Trash2, Pencil, Check, X, Download, Filter as FilterIcon } from 'lucide-react';
-import AdminShell from '@/components/AdminShell';
 import { usePageTitle } from '@/lib/usePageTitle';
+import { API_BASE_URL } from "@/lib/apiConfig";
+import { downloadReportPdf } from '@/lib/pdfReport';
+import Pagination from '@/components/Pagination';
+
+const PAGE_SIZE = 7;
+
+function formatReportedAt(dateStr: string): string {
+  const d = new Date(dateStr);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yy = String(d.getFullYear()).slice(-2);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm}/${yy} ~ ${hh}:${min}`;
+}
 
 /**
  * BACKEND ENDPOINTS (Express + MySQL) — confirmed against hazards.route.js
@@ -37,7 +51,7 @@ interface HazardReport {
 const HAZARD_TYPES = ['pothole', 'flooding', 'accident', 'debris', 'construction', 'roadblock', 'other'];
 
 const CONFIG = {
-  API_BASE_URL: (window as unknown as { CONFIG?: { API_BASE_URL?: string } }).CONFIG?.API_BASE_URL || 'https://mapper-backend-brkn.onrender.com',
+  API_BASE_URL,
 };
 
 const API = `${CONFIG.API_BASE_URL}/api/hazards`;
@@ -61,6 +75,7 @@ export default function HazardReports() {
   const [editValue, setEditValue] = useState('');
 
   const [toast, setToast] = useState<{ msg: string; type: string } | null>(null);
+  const [page, setPage] = useState(1);
 
   const showToast = (msg: string, type = '') => {
     setToast({ msg, type });
@@ -177,36 +192,41 @@ export default function HazardReports() {
     setFilterDateTo('');
   };
 
+  const pageCount = Math.max(1, Math.ceil(filteredReports.length / PAGE_SIZE));
+  useEffect(() => { setPage(1); }, [searchHazardType, filterHazardId, filterUserId, filterUserEmail, filterDateFrom, filterDateTo]);
+  const pagedReports = filteredReports.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   return (
-    <AdminShell
-      title="Hazard Reports"
-      subtitle="Edit hazard categories or remove reports from the risk database."
-       headerActions={<div className="flex gap-2">
-         <button
-           onClick={() => downloadReportPdf({
-             title: 'Hazard Reports', filename: 'hazard-reports.pdf',
-             columns: ['ID', 'User ID', 'Username', 'Email', 'Latitude', 'Longitude', 'Hazard type', 'Reported at'],
-             rows: filteredReports.map((report) => [report.id, report.user_id, report.username, report.email, report.latitude, report.longitude, report.hazardType, report.createdAt]),
-           })}
-           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
-         >
-           <Download size={14} /> Download PDF
-         </button>
-         <button
-           onClick={() => setIsFilterOpen(!isFilterOpen)}
-           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
-         >
-           <FilterIcon size={14} /> Filter
-         </button>
-       </div>}
-    >
-      <input
-        type="text"
-        placeholder="Search by hazard type"
-        value={searchHazardType}
-        onChange={(e) => setSearchHazardType(e.target.value)}
-        className={`${inputClass} max-w-sm`}
-      />
+    <div className="space-y-4">
+      <p className="text-brand-muted text-sm">Edit hazard categories or remove reports from the risk database.</p>
+
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <input
+          type="text"
+          placeholder="Search by hazard type"
+          value={searchHazardType}
+          onChange={(e) => setSearchHazardType(e.target.value)}
+          className={`${inputClass} max-w-sm`}
+        />
+        <div className="flex gap-2">
+          <button
+            onClick={() => downloadReportPdf({
+              title: 'Hazard Reports', filename: 'hazard-reports.pdf',
+              columns: ['ID', 'User ID', 'Username', 'Email', 'Latitude', 'Longitude', 'Hazard type', 'Reported at'],
+              rows: filteredReports.map((report) => [report.id, report.user_id, report.username, report.email, report.latitude, report.longitude, report.hazardType, report.createdAt]),
+            })}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
+          >
+            <Download size={14} /> Download PDF
+          </button>
+          <button
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
+          >
+            <FilterIcon size={14} /> Filter
+          </button>
+        </div>
+      </div>
 
       {isFilterOpen && (
         <div className="bg-white border border-brand-border rounded-2xl p-5">
@@ -249,35 +269,35 @@ export default function HazardReports() {
         <div className="w-full overflow-x-auto">
           <table className="w-full border-collapse text-left min-w-[850px]">
             <thead>
-              <tr className="bg-brand-bg text-brand-muted text-[11px] font-bold uppercase tracking-wide">
-                <th className="p-3">ID</th>
-                <th className="p-3">User ID</th>
-                <th className="p-3">Username</th>
-                <th className="p-3">Email</th>
-                <th className="p-3">Latitude</th>
-                <th className="p-3">Longitude</th>
-                <th className="p-3">Hazard Type</th>
-                <th className="p-3">Reported At</th>
-                <th className="p-3">Actions</th>
+              <tr className="bg-brand-bg text-brand-muted text-[10px] font-bold uppercase tracking-wide">
+                <th className="p-2">ID</th>
+                <th className="p-2">User ID</th>
+                <th className="p-2">Username</th>
+                <th className="p-2">Email</th>
+                <th className="p-2">Latitude</th>
+                <th className="p-2">Longitude</th>
+                <th className="p-2">Hazard Type</th>
+                <th className="p-2">Reported At</th>
+                <th className="p-2">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-border">
-              {filteredReports.length === 0 ? (
+              {pagedReports.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center text-brand-muted italic p-6 text-sm">
+                  <td colSpan={9} className="text-center text-brand-muted italic p-6 text-xs">
                     No hazard reports found.
                   </td>
                 </tr>
               ) : (
-                filteredReports.map((r) => (
-                  <tr key={r.id} className="hover:bg-brand-bg/60 transition-colors text-sm align-middle">
-                    <td className="p-3">{r.id}</td>
-                    <td className="p-3">{r.user_id}</td>
-                    <td className="p-3">{r.username || 'N/A'}</td>
-                    <td className="p-3">{r.email || 'N/A'}</td>
-                    <td className="p-3">{r.latitude}</td>
-                    <td className="p-3">{r.longitude}</td>
-                    <td className="p-3">
+                pagedReports.map((r) => (
+                  <tr key={r.id} className="hover:bg-brand-bg/60 transition-colors text-xs align-middle">
+                    <td className="p-2">{r.id}</td>
+                    <td className="p-2">{r.user_id}</td>
+                    <td className="p-2">{r.username || 'N/A'}</td>
+                    <td className="p-2">{r.email || 'N/A'}</td>
+                    <td className="p-2">{r.latitude}</td>
+                    <td className="p-2">{r.longitude}</td>
+                    <td className="p-2">
                       {editingId === r.id ? (
                         <select
                           value={editValue}
@@ -294,38 +314,38 @@ export default function HazardReports() {
                         <span className="capitalize">{r.hazardType}</span>
                       )}
                     </td>
-                    <td className="p-3">
-                      {r.createdAt ? new Date(r.createdAt).toLocaleString() : 'N/A'}
+                    <td className="p-2">
+                      {r.createdAt ? formatReportedAt(r.createdAt) : 'N/A'}
                     </td>
-                    <td className="p-3 whitespace-nowrap">
+                    <td className="p-2 whitespace-nowrap">
                       {editingId === r.id ? (
                         <>
                           <button
                             onClick={() => saveHazardType(r.id)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-brand-ink text-white text-xs font-bold hover:bg-brand-blue-dark mr-1.5"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-ink text-white text-[11px] font-bold hover:bg-brand-blue-dark mr-1.5"
                           >
-                            <Check size={12} /> Save
+                            <Check size={11} /> Save
                           </button>
                           <button
                             onClick={cancelEdit}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-brand-border text-brand-muted text-xs font-bold hover:text-brand-ink"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-brand-border text-brand-muted text-[11px] font-bold hover:text-brand-ink"
                           >
-                            <X size={12} /> Cancel
+                            <X size={11} /> Cancel
                           </button>
                         </>
                       ) : (
                         <>
                           <button
                             onClick={() => startEdit(r)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-brand-blue-soft text-brand-blue text-xs font-bold hover:bg-brand-blue hover:text-white mr-1.5 transition-colors"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-blue-soft text-brand-blue text-[11px] font-bold hover:bg-brand-blue hover:text-white mr-1.5 transition-colors"
                           >
-                            <Pencil size={12} /> Edit Type
+                            <Pencil size={11} /> Edit Type
                           </button>
                           <button
                             onClick={() => deleteReport(r.id)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-bold hover:bg-red-600 hover:text-white transition-colors"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-50 text-red-600 text-[11px] font-bold hover:bg-red-600 hover:text-white transition-colors"
                           >
-                            <Trash2 size={12} /> Delete
+                            <Trash2 size={11} /> Delete
                           </button>
                         </>
                       )}
@@ -337,6 +357,7 @@ export default function HazardReports() {
           </table>
         </div>
       </div>
+      <Pagination page={page} pageCount={pageCount} onPageChange={setPage} />
 
       {toast && (
         <div
@@ -347,6 +368,6 @@ export default function HazardReports() {
           {toast.msg}
         </div>
       )}
-    </AdminShell>
+    </div>
   );
 }

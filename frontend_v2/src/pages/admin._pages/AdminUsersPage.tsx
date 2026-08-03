@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Trash2, KeyRound, AlertTriangle, X, Filter as FilterIcon, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
-import AdminShell from '@/components/AdminShell';
 import { usePageTitle } from '@/lib/usePageTitle';
+import { API_BASE_URL } from "@/lib/apiConfig";
+import { downloadReportPdf } from '@/lib/pdfReport';
+import Pagination from '@/components/Pagination';
+
+const PAGE_SIZE = 7;
 
 /**
  * BACKEND ENDPOINTS (Express + MySQL) — confirmed against user.routes.js
@@ -53,7 +57,7 @@ const EMPTY_FILTERS: FilterState = {
 };
 
 const CONFIG = {
-  API_BASE_URL: (window as unknown as { CONFIG?: { API_BASE_URL?: string } }).CONFIG?.API_BASE_URL || 'https://mapper-backend-brkn.onrender.com',
+  API_BASE_URL,
 };
 
 const DRIVERS_API = `${CONFIG.API_BASE_URL}/api/users/drivers`;
@@ -67,6 +71,7 @@ export default function DriverManagement() {
   const [allDrivers, setAllDrivers] = useState<Driver[]>([]);
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [page, setPage] = useState(1);
 
   const [openPasswordPanel, setOpenPasswordPanel] = useState<{ [userId: number]: boolean }>({});
   const [passwordInputs, setPasswordInputs] = useState<{ [userId: number]: { password: string; confirm: string } }>({});
@@ -119,6 +124,10 @@ export default function DriverManagement() {
   }, [allDrivers, filters]);
 
   const clearFilters = () => setFilters(EMPTY_FILTERS);
+
+  const pageCount = Math.max(1, Math.ceil(filteredDrivers.length / PAGE_SIZE));
+  useEffect(() => { setPage(1); }, [filters]);
+  const pagedDrivers = filteredDrivers.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   // --- Password update (the only editable field) ---
   const togglePasswordPanel = (userId: number) => {
@@ -194,35 +203,36 @@ export default function DriverManagement() {
   };
 
   return (
-    <AdminShell
-      title="Driver Management"
-      subtitle="Reset passwords and remove driver accounts."
-       headerActions={<div className="flex gap-2">
-         <button
-           onClick={() => downloadReportPdf({
-             title: 'Driver Management Report', filename: 'driver-management-report.pdf',
-             columns: ['Driver ID', 'User ID', 'First name', 'Last name', 'Username', 'Email', 'Created at', 'Last login'],
-             rows: filteredDrivers.map((driver) => [driver.driver_id, driver.user_id, driver.firstname, driver.lastname, driver.username, driver.email, driver.date_created, driver.last_login]),
-           })}
-           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
-         >
-           <Download size={14} /> Download PDF
-         </button>
-         <button
-           onClick={() => setIsFilterOpen(!isFilterOpen)}
-           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
-         >
-           <FilterIcon size={14} /> Filter
-         </button>
-       </div>}
-    >
-      <input
-        type="text"
-        placeholder="Quick search by username"
-        value={filters.username}
-        onChange={(e) => setFilters((prev) => ({ ...prev, username: e.target.value }))}
-        className={`${inputClass} max-w-sm`}
-      />
+    <div className="space-y-4">
+      <p className="text-brand-muted text-sm">Reset passwords and remove driver accounts.</p>
+
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <input
+          type="text"
+          placeholder="Quick search by username"
+          value={filters.username}
+          onChange={(e) => setFilters((prev) => ({ ...prev, username: e.target.value }))}
+          className={`${inputClass} max-w-sm`}
+        />
+        <div className="flex gap-2">
+          <button
+            onClick={() => downloadReportPdf({
+              title: 'Driver Management Report', filename: 'driver-management-report.pdf',
+              columns: ['Driver ID', 'User ID', 'First name', 'Last name', 'Username', 'Email', 'Created at', 'Last login'],
+              rows: filteredDrivers.map((driver) => [driver.driver_id, driver.user_id, driver.firstname, driver.lastname, driver.username, driver.email, driver.date_created, driver.last_login]),
+            })}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
+          >
+            <Download size={14} /> Download PDF
+          </button>
+          <button
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
+          >
+            <FilterIcon size={14} /> Filter
+          </button>
+        </div>
+      </div>
 
       {isFilterOpen && (
         <div className="bg-white border border-brand-border rounded-2xl p-5">
@@ -261,53 +271,53 @@ export default function DriverManagement() {
         <div className="w-full overflow-x-auto">
           <table className="w-full border-collapse text-left min-w-[800px]">
             <thead>
-              <tr className="bg-brand-bg text-brand-muted text-[11px] font-bold uppercase tracking-wide">
-                <th className="p-3">Driver ID</th>
-                <th className="p-3">User ID</th>
-                <th className="p-3">First Name</th>
-                <th className="p-3">Last Name</th>
-                <th className="p-3">Username</th>
-                <th className="p-3">Email</th>
-                <th className="p-3">Created At</th>
-                <th className="p-3">Last Login</th>
-                <th className="p-3">Actions</th>
+              <tr className="bg-brand-bg text-brand-muted text-[10px] font-bold uppercase tracking-wide">
+                <th className="p-2">Driver ID</th>
+                <th className="p-2">User ID</th>
+                <th className="p-2">First Name</th>
+                <th className="p-2">Last Name</th>
+                <th className="p-2">Username</th>
+                <th className="p-2">Email</th>
+                <th className="p-2">Created At</th>
+                <th className="p-2">Last Login</th>
+                <th className="p-2">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-border">
-              {filteredDrivers.length === 0 ? (
+              {pagedDrivers.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center text-brand-muted italic p-6 text-sm">
+                  <td colSpan={9} className="text-center text-brand-muted italic p-6 text-xs">
                     No drivers found.
                   </td>
                 </tr>
               ) : (
-                filteredDrivers.map((d) => (
+                pagedDrivers.map((d) => (
                   <React.Fragment key={d.driver_id}>
-                    <tr className="hover:bg-brand-bg/60 transition-colors text-sm align-middle">
-                      <td className="p-3">{d.driver_id}</td>
-                      <td className="p-3">{d.user_id}</td>
-                      <td className="p-3">{d.firstname}</td>
-                      <td className="p-3">{d.lastname}</td>
-                      <td className="p-3">{d.username}</td>
-                      <td className="p-3">{d.email}</td>
-                      <td className="p-3">
+                    <tr className="hover:bg-brand-bg/60 transition-colors text-xs align-middle">
+                      <td className="p-2">{d.driver_id}</td>
+                      <td className="p-2">{d.user_id}</td>
+                      <td className="p-2">{d.firstname}</td>
+                      <td className="p-2">{d.lastname}</td>
+                      <td className="p-2">{d.username}</td>
+                      <td className="p-2">{d.email}</td>
+                      <td className="p-2">
                         {d.date_created ? new Date(d.date_created).toLocaleString() : 'N/A'}
                       </td>
-                      <td className="p-3">
+                      <td className="p-2">
                         {d.last_login ? new Date(d.last_login).toLocaleString() : 'Never'}
                       </td>
-                      <td className="p-3 whitespace-nowrap">
+                      <td className="p-2 whitespace-nowrap">
                         <button
                           onClick={() => togglePasswordPanel(d.user_id)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-brand-blue-soft text-brand-blue text-xs font-bold hover:bg-brand-blue hover:text-white mr-1.5 transition-colors"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-blue-soft text-brand-blue text-[11px] font-bold hover:bg-brand-blue hover:text-white mr-1.5 transition-colors"
                         >
-                          <KeyRound size={12} /> Password
+                          <KeyRound size={11} /> Password
                         </button>
                         <button
                           onClick={() => setDeleteModal({ isOpen: true, targetDriver: d })}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-bold hover:bg-red-600 hover:text-white transition-colors"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-50 text-red-600 text-[11px] font-bold hover:bg-red-600 hover:text-white transition-colors"
                         >
-                          <Trash2 size={12} /> Delete
+                          <Trash2 size={11} /> Delete
                         </button>
                       </td>
                     </tr>
@@ -359,6 +369,7 @@ export default function DriverManagement() {
           </table>
         </div>
       </div>
+      <Pagination page={page} pageCount={pageCount} onPageChange={setPage} />
 
       {/* Delete Confirmation Modal */}
       {deleteModal.isOpen && deleteModal.targetDriver && (
@@ -402,6 +413,6 @@ export default function DriverManagement() {
           </div>
         </div>
       )}
-    </AdminShell>
+    </div>
   );
 }

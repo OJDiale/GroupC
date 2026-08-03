@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Settings, Trash2, Edit2, ArrowLeft } from 'lucide-react';
+import { API_BASE_URL } from "@/lib/apiConfig";
 
 // --- TypeScript Interfaces & Config Mock ---
 interface Incident {
@@ -24,7 +25,7 @@ interface AICacheItem {
 
 // Assuming CONFIG comes from an external config or environment variables
 const CONFIG = {
-  API_BASE_URL: (window as any).CONFIG?.API_BASE_URL || 'http://localhost:5000',
+  API_BASE_URL,
 };
 
 const API = `${CONFIG.API_BASE_URL}/api/incidents`;

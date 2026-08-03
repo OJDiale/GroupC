@@ -1,7 +1,5 @@
 import toast from "react-hot-toast";
-
-// Set your backend base url
-const BASE_URL = "https://mapper-backend-brkn.onrender.com";
+import { API_BASE_URL as BASE_URL } from "../lib/apiConfig";
 
 /**
  * Helper to extract the authentication token for protected routes
