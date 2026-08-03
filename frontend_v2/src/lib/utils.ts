@@ -11,6 +11,7 @@ import newImage1 from "../assets/newImage1.jpg"
 import newImage2 from "../assets/newImage2.jpg"
 import newImage3 from "../assets/newImage2.jpg"
 import { redirect } from "react-router"
+import { API_BASE_URL } from "./apiConfig"
 import {
   type GeoCoordinate,
   type HazardPoint,
@@ -661,7 +662,7 @@ export function doesRouteInterceptAvoidZone(
   return shortestDistance <= avoidRadiusInKm;
 }
 
-export const BASE_URL = "https://mapper-backend-brkn.onrender.com";
+export const BASE_URL = API_BASE_URL;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GEOCODING — proxied through the backend so the Geoapify key never ships

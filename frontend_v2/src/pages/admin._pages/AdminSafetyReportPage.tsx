@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { RefreshCw, ArrowUpDown } from 'lucide-react';
-import AdminShell from '@/components/AdminShell';
+import { RefreshCw, ArrowUpDown, Filter as FilterIcon } from 'lucide-react';
+import { formatDateTime } from '@/lib/formatDate';
 import ReportExportButtons from '@/components/ReportExportButtons';
 import { usePageTitle } from '@/lib/usePageTitle';
+import { API_BASE_URL } from "@/lib/apiConfig";
 
 const CONFIG = {
-  API_BASE_URL: (window as unknown as { CONFIG?: { API_BASE_URL?: string } }).CONFIG?.API_BASE_URL || 'https://mapper-backend-brkn.onrender.com',
+  API_BASE_URL,
 };
 
 interface SafetyReport {
@@ -37,6 +38,7 @@ export default function AdminSafetyReportPage() {
   const [source, setSource] = useState('');
   const [sortBy, setSortBy] = useState<'count' | 'name'>('count');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -70,17 +72,25 @@ export default function AdminSafetyReportPage() {
   const toggleSortDir = () => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
 
   const statCard = (label: string, value: number | string) => (
-    <div className="bg-white border border-brand-border rounded-2xl p-5">
-      <div className="text-brand-muted text-[11px] uppercase tracking-wide font-bold mb-1">{label}</div>
-      <div className="text-3xl font-extrabold">{value}</div>
+    <div className="bg-white border border-brand-border rounded-2xl p-4">
+      <div className="text-brand-muted text-[10px] uppercase tracking-wide font-bold mb-1">{label}</div>
+      <div className="text-2xl font-extrabold">{value}</div>
     </div>
   );
 
   return (
-    <AdminShell
-      title="Safety Report"
-      subtitle={report ? `Generated ${new Date(report.generatedAt).toLocaleString()}` : undefined}
-      headerActions={
+    <div className="space-y-4">
+      <p className="text-brand-muted text-sm">
+        {report ? `Generated ${formatDateTime(report.generatedAt)}` : "Generating report…"}
+      </p>
+
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <button
+          onClick={() => setIsFilterOpen(!isFilterOpen)}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
+        >
+          <FilterIcon size={14} /> Filter
+        </button>
         <div className="flex items-center gap-2 flex-wrap">
           <ReportExportButtons basePath={`/api/reports/safety?${queryString}`} filename="safety_report" />
           <button
@@ -90,9 +100,10 @@ export default function AdminSafetyReportPage() {
             <RefreshCw size={14} /> Refresh
           </button>
         </div>
-      }
-    >
-      <div className="flex items-end gap-3 flex-wrap mb-6 bg-white border border-brand-border rounded-2xl p-4">
+      </div>
+
+      {isFilterOpen && (
+      <div className="flex items-end gap-3 flex-wrap bg-white border border-brand-border rounded-2xl p-4">
         <div>
           <label className="block text-[11px] font-bold uppercase tracking-wide text-brand-muted mb-1">From</label>
           <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="border border-brand-border rounded-lg px-3 py-1.5 text-sm" />
@@ -146,9 +157,10 @@ export default function AdminSafetyReportPage() {
           ))}
         </div>
       </div>
+      )}
 
-      {loading && <p className="text-brand-muted">Generating report…</p>}
-      {error && <p className="text-red-600">{error}</p>}
+      {loading && <p className="text-brand-muted text-sm">Generating report…</p>}
+      {error && <p className="text-red-600 text-sm">{error}</p>}
 
       {report && (
         <div className="space-y-8">
@@ -226,6 +238,6 @@ export default function AdminSafetyReportPage() {
           </div>
         </div>
       )}
-    </AdminShell>
+    </div>
   );
 }

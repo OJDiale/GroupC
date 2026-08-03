@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Sparkles, Check, X, ShieldAlert, RefreshCw, MapPin, Info } from "lucide-react";
 import { Map, MapMarker, MarkerContent } from "@/components/ui/map";
+import { API_BASE_URL } from "@/lib/apiConfig";
 
 const CONFIG = {
-  API_BASE_URL: (window as unknown as { CONFIG?: { API_BASE_URL?: string } }).CONFIG?.API_BASE_URL || "https://mapper-backend-brkn.onrender.com",
+  API_BASE_URL,
 };
 
 interface Candidate {

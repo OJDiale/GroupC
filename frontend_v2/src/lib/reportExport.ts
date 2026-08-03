@@ -3,8 +3,10 @@
 // the browser doesn't attach localStorage's JWT to a normal navigation.
 // Instead we fetch with the auth header, turn the response into a blob,
 // and trigger a download via a temporary object URL.
+import { API_BASE_URL } from "./apiConfig";
+
 const CONFIG = {
-  API_BASE_URL: (window as unknown as { CONFIG?: { API_BASE_URL?: string } }).CONFIG?.API_BASE_URL || "https://mapper-backend-brkn.onrender.com",
+  API_BASE_URL,
 };
 
 export async function downloadReport(path: string, filename: string): Promise<void> {
