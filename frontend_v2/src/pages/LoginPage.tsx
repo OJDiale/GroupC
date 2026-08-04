@@ -67,44 +67,48 @@ export default function Login() {
             <h1 className="w-full text-3xl font-bold text-black text-center mb-2">Welcome</h1>
             <p className="w-full text-gray-400 text-center mb-6">Sign in to continue to Mapper</p>
 
-            {/**if user tries to use the map without logging in this message will display for a few secs  label B2*/}
-            {message && (
-                <p className="w-full text-amber-800 flex gap-2 items-center rounded-xl px-3 py-2 mb-4 bg-amber-50 border border-amber-200 text-xs font-medium">
-                    <InfoIcon size={14} className="shrink-0" />{message}
-                </p>
-            )}
+            <Form method="POST" replace className="w-full">
+                <div className="mx-auto w-[70%] space-y-4">
+                    {/**if user tries to use the map without logging in this message will display for a few secs  label B2*/}
+                    {message && (
+                        <p className="w-full text-amber-800 flex gap-2 items-center rounded-xl px-3 py-2 bg-amber-50 border border-amber-200 text-xs font-medium">
+                            <InfoIcon size={14} className="shrink-0" />{message}
+                        </p>
+                    )}
 
-            <Form method="POST" replace className="w-full space-y-4">
-                <AuthInput
-                    label="Email or Username"
-                    name="identifier"
-                    placeholder="Enter Email or Username"
-                />
-                <div>
                     <AuthInput
-                        label="Password"
-                        name="password"
-                        type="password"
-                        placeholder="Enter Password"
+                        label="Email or Username"
+                        name="identifier"
+                        placeholder="Enter Email or Username"
                     />
-                    <div className="mt-2 text-right">
-                        <Link to="/login/forgot-password" className="text-auth-link hover:text-auth-link-hover transition-colors text-sm font-medium">
-                            Forgot Password
-                        </Link>
+                    <div>
+                        <AuthInput
+                            label="Password"
+                            name="password"
+                            type="password"
+                            placeholder="Enter Password"
+                        />
+                        <div className="mt-2 text-right">
+                            <Link to="/login/forgot-password" className="text-auth-link hover:text-auth-link-hover transition-colors text-sm font-medium">
+                                Forgot Password
+                            </Link>
+                        </div>
                     </div>
+
+                    <p className="w-full text-gray-400 text-sm text-center">
+                        Don't have an account?{" "}
+                        <Link to="/login/signin" className="text-auth-link hover:text-auth-link-hover transition-colors font-semibold">
+                            Sign up
+                        </Link>
+                    </p>
                 </div>
 
-                <AuthButton disabled={navigation.state === "submitting"}>
-                    {navigation.state === "submitting" ? "Signing in…" : "Sign in"}
-                </AuthButton>
+                <div className="mx-auto w-[40%] mt-4">
+                    <AuthButton disabled={navigation.state === "submitting"}>
+                        {navigation.state === "submitting" ? "Signing in…" : "Sign in"}
+                    </AuthButton>
+                </div>
             </Form>
-
-            <p className="w-full text-gray-400 text-sm text-center mt-6">
-                Don't have an account?{" "}
-                <Link to="/login/signin" className="text-auth-link hover:text-auth-link-hover transition-colors font-semibold">
-                    Sign up
-                </Link>
-            </p>
         </div>
     )
 }

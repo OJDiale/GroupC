@@ -6,7 +6,6 @@ import Layout from './components/Layout.tsx'
 import HomePage from './pages/HomePage.tsx'
 import MapLayout from './pages/MapPage.tsx'
 import MapCurrent from './pages/MapCurrent.tsx'
-import Test from './pages/test.tsx'
 import StartSession from './pages/StartSession.tsx'
 import SignInPage , {action as signInAction} from './pages/SignInPage.tsx'
 import LoginPage, {action as loginAction} from "./pages/LoginPage.tsx"
@@ -29,7 +28,6 @@ import AdminHazardResponseReportPage from './pages/admin._pages/AdminHazardRespo
 import TrafficAuthorityDashboard from './pages/TrafficAuthorityDashboard.tsx'
 import SecurityAgencyDashboard from './pages/SecurityAgencyDashboard.tsx'
 import DataAnalystDashboard from './pages/DataAnalystDashboard.tsx'
-import ContactPage from './pages/ContactPage.tsx'
 import NotFoundPage from './pages/NotFoundPage.tsx'
 
 //sekelton for app
@@ -72,14 +70,6 @@ function App() {
                  element={<HomePage/>}
          
                 />
-              <Route 
-                   path="about" 
-                   element={<Test/>}
-                />
-              <Route
-                  path="contact"
-                  element={<ContactPage/>}
-               />
               <Route
                  path="account"
                  loader={accountHolderLoader}

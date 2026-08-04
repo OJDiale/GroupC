@@ -1,16 +1,10 @@
 import { Outlet, NavLink, Link, useLocation } from "react-router";
-import { CircleUserRound, Github, Linkedin, Twitter, Menu, X, MapPin } from 'lucide-react';
+import { CircleUserRound, Menu, X, MapPin } from 'lucide-react';
 import { useEffect, useRef, useState } from "react";
 import { animate, stagger } from "animejs";
 import { userData } from "../database/auth.js";
 import Logo from "./Logo";
 import NotificationCenter from "./NotificationCenter";
-
-const NAV_ITEMS = [
-  { key: "home", to: "/", end: true, label: "Home" },
-  { key: "about", to: "about", end: false, label: "About" },
-  { key: "contact", to: "contact", end: false, label: "Contact" },
-];
 
 export default function HomePage() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => Boolean(localStorage.getItem("token")));
@@ -18,9 +12,6 @@ export default function HomePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
 
-  const navRailRef = useRef<HTMLDivElement>(null);
-  const highlightRef = useRef<HTMLSpanElement>(null);
-  const navLinkRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
   const mainRef = useRef<HTMLDivElement>(null);
 
   function getLocation() {
@@ -84,27 +75,6 @@ export default function HomePage() {
     };
   }, [isLoggedIn]);
 
-  // Slide the pill highlight behind whichever nav item is active.
-  useEffect(() => {
-    const active =
-      NAV_ITEMS.find((item) => (item.end ? location.pathname === "/" : location.pathname.startsWith(`/${item.to}`))) ??
-      NAV_ITEMS[0];
-    const target = navLinkRefs.current[active.key];
-    const rail = navRailRef.current;
-    const highlight = highlightRef.current;
-    if (!target || !rail || !highlight) return;
-
-    const railBox = rail.getBoundingClientRect();
-    const targetBox = target.getBoundingClientRect();
-
-    animate(highlight, {
-      left: targetBox.left - railBox.left,
-      width: targetBox.width,
-      duration: 380,
-      ease: "outExpo",
-    });
-  }, [location.pathname]);
-
   // Stagger the mobile menu links in on open.
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -138,29 +108,6 @@ export default function HomePage() {
           <Logo />
         </Link>
 
-        {/* Desktop Nav */}
-        <nav ref={navRailRef} className="max-md:hidden md:flex items-center gap-2 text-sm relative">
-          <span
-            ref={highlightRef}
-            className="absolute top-0 bottom-0 left-0 w-0 rounded-full bg-brand-blue-soft pointer-events-none"
-          />
-          {NAV_ITEMS.map((item) => (
-            <NavLink
-              key={item.key}
-              to={item.to}
-              end={item.end}
-              ref={(el) => { navLinkRefs.current[item.key] = el; }}
-              className={({ isActive }) =>
-                `relative z-10 px-4 py-1.5 rounded-full font-semibold transition-colors ${
-                  isActive ? "text-brand-ink" : "text-brand-muted hover:text-brand-ink"
-                }`
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
-
         {/* Desktop Right side */}
         <div className="max-md:hidden md:flex items-center gap-4 text-sm">
           {!isLoggedIn ? (
@@ -170,7 +117,7 @@ export default function HomePage() {
               </NavLink>
               <Link
                 to="login/signin"
-                className="bg-brand-ink hover:bg-brand-blue-dark text-white font-semibold px-5 py-2 rounded-full transition-colors"
+                className="border-4 border-[#15175b] bg-gradient-to-r from-auth-navy to-auth-teal hover:bg-none hover:bg-white hover:text-[#15175b] text-white font-semibold px-5 py-2 rounded-full transition-all"
               >
                 Sign up
               </Link>
@@ -201,9 +148,6 @@ export default function HomePage() {
       {/* Mobile Nav Overlay */}
       {isMenuOpen && (
         <div className="fixed inset-0 z-40 bg-brand-bg text-brand-ink flex flex-col items-center justify-center gap-8 text-xl md:hidden">
-          <NavLink className="mobile-nav-item" to="/" onClick={() => setIsMenuOpen(false)}>Home</NavLink>
-          <NavLink className="mobile-nav-item" to="about" onClick={() => setIsMenuOpen(false)}>About</NavLink>
-          <NavLink className="mobile-nav-item" to="contact" onClick={() => setIsMenuOpen(false)}>Contact</NavLink>
           <NavLink className="mobile-nav-item" to="map" onClick={() => setIsMenuOpen(false)}>Map</NavLink>
 
           {!isLoggedIn ? (
@@ -212,7 +156,7 @@ export default function HomePage() {
               <NavLink
                 to="login/signin"
                 onClick={() => setIsMenuOpen(false)}
-                className="mobile-nav-item bg-brand-ink text-white font-semibold px-6 py-2 rounded-full"
+                className="mobile-nav-item border-4 border-[#15175b] bg-gradient-to-r from-auth-navy to-auth-teal hover:bg-none hover:bg-white hover:text-[#15175b] text-white font-semibold px-6 py-2 rounded-full transition-all"
               >
                 Sign up
               </NavLink>
@@ -232,29 +176,15 @@ export default function HomePage() {
       </main>
 
       {/* FOOTER */}
-      <footer className="bg-brand-ink text-slate-400 py-10 px-6 font-sans mt-auto">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex flex-col items-center md:items-start gap-2">
-            <span className="logo-font text-white">Mapper</span>
-            <p className="text-xs text-slate-500 max-w-xs text-center md:text-left">
-              Safe routing for South African roads.
-            </p>
-          </div>
-
-          <div className="flex gap-6 text-xs">
-            <NavLink to="/" className="hover:text-white transition-colors">Home</NavLink>
-            <NavLink to="about" className="hover:text-white transition-colors">About</NavLink>
-            <NavLink to="contact" className="hover:text-white transition-colors">Contact</NavLink>
-          </div>
-
-          <div className="flex gap-5">
-            <a href="#" className="hover:text-brand-blue transition-colors"><Github size={18} /></a>
-            <a href="#" className="hover:text-brand-blue transition-colors"><Linkedin size={18} /></a>
-            <a href="#" className="hover:text-brand-blue transition-colors"><Twitter size={18} /></a>
-          </div>
+      <footer className="bg-white text-brand-muted py-10 px-6 font-sans mt-auto border-t border-brand-border">
+        <div className="max-w-7xl mx-auto flex flex-col items-center text-center gap-2">
+          <span className="logo-font text-brand-ink">Mapper</span>
+          <p className="text-xs text-brand-muted max-w-xs">
+            Safe routing for South African roads.
+          </p>
         </div>
 
-        <div className="max-w-7xl mx-auto mt-8 pt-6 border-t border-white/10 text-center text-[10px]">
+        <div className="max-w-7xl mx-auto mt-8 pt-6 border-t border-brand-border text-center text-[10px]">
           &copy; {currentYear} Mapper. All rights reserved.
         </div>
       </footer>
