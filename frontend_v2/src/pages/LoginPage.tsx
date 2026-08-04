@@ -1,22 +1,25 @@
 import { Link, Form, useSearchParams, useNavigation, redirect } from "react-router"
-import { EyeIcon, InfoIcon, EyeOff } from "lucide-react"
-import { useEffect, useState } from "react"
+import { InfoIcon } from "lucide-react"
+import { useEffect } from "react"
 import toast from "react-hot-toast"
 import { type ActionProps } from "@/lib/types"
 import { loginWithEmailAndPassword, checkForAdmin, dashboardPathForRole } from "../database/auth.js"
 import { usePageTitle } from "@/lib/usePageTitle"
+import AuthBackButton from "@/components/auth/AuthBackButton"
+import AuthInput from "@/components/auth/AuthInput"
+import AuthButton from "@/components/auth/AuthButton"
 
 //form action
 // eslint-disable-next-line react-refresh/only-export-components
 export async function action({ request }: ActionProps) {
     //data collection from the form
     const formData = await request.formData()
-    const email: string = String(formData.get("email"))
+    const identifier: string = String(formData.get("identifier"))
     const password: string = String(formData.get("password"))
 
     try {
         //submit data of form and display toast then go to the map
-        const user = await loginWithEmailAndPassword(email, password)
+        const user = await loginWithEmailAndPassword(identifier, password)
         const token = user.token
         const userType = user.userType
         localStorage.setItem("token", token)
@@ -37,8 +40,6 @@ export async function action({ request }: ActionProps) {
 
 export default function Login() {
     usePageTitle("Log In")
-    //state for toggling between input type of text and password in order to hide and show it check label A below
-    const [showPassword, setShowPassword] = useState<boolean>(false)
     //searchParams to grap message send from the redirect("/login?message=this is to set the url with a message") check labels B
     const [searchParams, setSearchParams] = useSearchParams()
     const message = searchParams.get("message")
@@ -47,7 +48,7 @@ export default function Login() {
 
     //useEffect usecase here avoides a infinate loop
     useEffect(() => {
-        //after 2 sec deletes the message on url bar (label B1)
+        //after 4 sec deletes the message on url bar (label B1)
         const timer = setTimeout(() => {
             setSearchParams(pre => {
                 if (pre.get("message")) pre.delete("message")
@@ -58,58 +59,52 @@ export default function Login() {
     }, [])
 
     return (
-        <div className="w-full max-w-sm">
-            <h1 className="text-3xl font-extrabold text-brand-ink mb-1">Welcome back</h1>
-            <p className="text-brand-muted text-sm mb-6">Login to continue to your account.</p>
+        <div className="w-[90%]">
+            <div className="w-full flex justify-start mb-2">
+                <AuthBackButton to="/" />
+            </div>
+
+            <h1 className="w-full text-3xl font-bold text-black text-center mb-2">Welcome</h1>
+            <p className="w-full text-gray-400 text-center mb-6">Sign in to continue to Mapper</p>
 
             {/**if user tries to use the map without logging in this message will display for a few secs  label B2*/}
             {message && (
-                <p className="text-amber-800 flex gap-2 items-center rounded-xl px-3 py-2 mb-4 bg-amber-50 border border-amber-200 text-xs font-medium">
+                <p className="w-full text-amber-800 flex gap-2 items-center rounded-xl px-3 py-2 mb-4 bg-amber-50 border border-amber-200 text-xs font-medium">
                     <InfoIcon size={14} className="shrink-0" />{message}
                 </p>
             )}
-            <p className="text-brand-muted text-sm mb-6">
-                Don't have an account? <Link to="signin" className="text-brand-blue font-semibold hover:underline">Sign up</Link>
-            </p>
-            <Form method="POST" replace className="space-y-4">
-                <input
-                    type="email"
-                    name="email"
-                    required
-                    placeholder="Email"
-                    className="block h-11 px-4 text-brand-ink bg-white border border-brand-border w-full rounded-xl placeholder:text-brand-muted focus:outline-none focus:ring-2 focus:ring-brand-blue/40 focus:border-brand-blue"
+
+            <Form method="POST" replace className="w-full space-y-4">
+                <AuthInput
+                    label="Email or Username"
+                    name="identifier"
+                    placeholder="Enter Email or Username"
                 />
-                <div className="w-full bg-white border border-brand-border
-                                flex justify-between
-                                focus-within:ring-2
-                                focus-within:ring-brand-blue/40
-                                focus-within:border-brand-blue
-                                items-center rounded-xl text-brand-ink">
-                    <input
-                        /**label A */
-                        type={showPassword ? "text" : "password"}
+                <div>
+                    <AuthInput
+                        label="Password"
                         name="password"
-                        required
-                        placeholder="Password"
-                        className="min-w-20 bg-transparent text-brand-ink placeholder:text-brand-muted outline-none w-full h-11 px-4"
+                        type="password"
+                        placeholder="Enter Password"
                     />
-                    <button
-                        type="button"
-                        className="size-10 shrink-0 text-center flex items-center justify-center text-brand-muted hover:text-brand-ink"
-                        onClick={() => setShowPassword(pre => !pre)}
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                    >
-                        {showPassword ? <EyeIcon size={18} /> : <EyeOff size={18} />}
-                    </button>
+                    <div className="mt-2 text-right">
+                        <Link to="/login/forgot-password" className="text-auth-link hover:text-auth-link-hover transition-colors text-sm font-medium">
+                            Forgot Password
+                        </Link>
+                    </div>
                 </div>
 
-                <button
-                    className={`${navigation.state === "submitting" ? "bg-slate-400 cursor-not-allowed" : "bg-brand-ink hover:bg-brand-blue-dark cursor-pointer"} w-full
-                             text-white font-semibold py-3 px-4
-                              rounded-xl transition-colors`}
-                    disabled={navigation.state === "submitting"}
-                >{navigation.state === "submitting" ? "Logging in…" : "Login"}</button>
+                <AuthButton disabled={navigation.state === "submitting"}>
+                    {navigation.state === "submitting" ? "Signing in…" : "Sign in"}
+                </AuthButton>
             </Form>
+
+            <p className="w-full text-gray-400 text-sm text-center mt-6">
+                Don't have an account?{" "}
+                <Link to="/login/signin" className="text-auth-link hover:text-auth-link-hover transition-colors font-semibold">
+                    Sign up
+                </Link>
+            </p>
         </div>
     )
 }
