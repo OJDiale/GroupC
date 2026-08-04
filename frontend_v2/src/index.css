@@ -17,6 +17,17 @@
   --color-brand-blue-dark: #16266b;
   --color-brand-blue-soft: #dce8fb;
   --color-brand-border: #e7e2d6;
+
+  /* Auth pages (login/signup/forgot-password) — exact hex values from spec */
+  --color-auth-navy: #120e59;
+  --color-auth-teal: #48acc2;
+  --color-auth-cyan: #76f3ff;
+  --color-auth-arrow: #5170ff;
+  --color-auth-border: #c4c4c4;
+  --color-auth-input-bg: #effdff;
+  --color-auth-link: #37a9b4;
+  --color-auth-link-hover: #5170ff;
+  --color-auth-button-border: #171e5b;
 }
 
 body{

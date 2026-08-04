@@ -10,6 +10,7 @@ import Test from './pages/test.tsx'
 import StartSession from './pages/StartSession.tsx'
 import SignInPage , {action as signInAction} from './pages/SignInPage.tsx'
 import LoginPage, {action as loginAction} from "./pages/LoginPage.tsx"
+import ForgotPasswordPage, {action as forgotPasswordAction} from "./pages/ForgotPasswordPage.tsx"
 import AccountHolder , {loader as accountHolderLoader} from "./pages/AccountHolder.tsx"
 import { loggIn } from "./lib/utils.ts"
 import HistoralEvents from "./pages/HistoricalEvents.tsx"
@@ -172,10 +173,15 @@ function App() {
                       action={loginAction}
                       element={<LoginPage/>}
                     />
-                   <Route 
-                      path="signin" 
+                   <Route
+                      path="signin"
                       action={signInAction}
                       element={<SignInPage/>}
+                    />
+                   <Route
+                      path="forgot-password"
+                      action={forgotPasswordAction}
+                      element={<ForgotPasswordPage/>}
                     />
          </Route>
          </>
