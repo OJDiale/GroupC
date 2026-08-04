@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router";
-import { LogOut, MapPin, Check, RotateCcw, ArrowLeft, ShieldAlert } from "lucide-react";
+import { LogOut, MapPin, Search, Check, RotateCcw, ArrowLeft, ShieldAlert } from "lucide-react";
 import { Map, MapMarker, MarkerContent } from "@/components/ui/map";
+import type { Map as MapLibreMap } from "maplibre-gl";
 import Logo from "@/components/Logo";
 import { API_BASE_URL } from "@/lib/apiConfig";
+import { geocodeAutocomplete } from "@/lib/utils";
 
 const CONFIG = {
   API_BASE_URL,
@@ -43,12 +45,15 @@ export default function StaffReportDashboard({
   accentClass = "bg-blue-600 hover:bg-blue-700",
 }: StaffReportDashboardProps) {
   const navigate = useNavigate();
+  const mapRef = useRef<MapLibreMap | null>(null);
   const [pin, setPin] = useState({ lng: 28.1914, lat: -25.7566 });
   const [hazardType, setHazardType] = useState(hazardTypeOptions[0]?.value ?? "other");
   const [submitting, setSubmitting] = useState(false);
   const [reports, setReports] = useState<MyReport[]>([]);
   const [loadingReports, setLoadingReports] = useState(true);
   const [toast, setToast] = useState<{ msg: string; type: string } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<any[]>([]);
 
   const showToast = (msg: string, type = "") => {
     setToast({ msg, type });
@@ -117,6 +122,50 @@ export default function StaffReportDashboard({
     navigate("/");
   };
 
+  // Debounced location autocomplete — same geocoder the driver map uses.
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      geocodeAutocomplete(searchQuery.trim())
+        .then((features) => setSuggestions(Array.isArray(features) ? features : []))
+        .catch(() => setSuggestions([]));
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const selectPlace = (feature: any) => {
+    const coords = feature?.geometry?.coordinates;
+    const lon = Array.isArray(coords) ? Number(coords[0]) : NaN;
+    const lat = Array.isArray(coords) ? Number(coords[1]) : NaN;
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) return;
+
+    const name =
+      feature?.properties?.formatted ||
+      feature?.properties?.label ||
+      feature?.properties?.name ||
+      searchQuery;
+
+    setPin({ lng: lon, lat });
+    setSearchQuery(name);
+    setSuggestions([]);
+    mapRef.current?.flyTo({ center: [lon, lat], zoom: 14, duration: 1200 });
+  };
+
+  // New backend rows come back as "YYYY-MM-DDTHH:mm:ss+02:00" (explicitly
+  // tagged SAST). Legacy rows are still naive "YYYY-MM-DD HH:mm:ss" — those
+  // were stored via CONVERT_TZ(...) as SAST wall-clock too, so append the
+  // +02:00 offset before parsing to stop the browser from shifting the time.
+  const formatReportDate = (raw: string) => {
+    const normalized =
+      raw.includes("T") || raw.includes("+") || raw.endsWith("Z")
+        ? raw
+        : `${raw.replace(" ", "T")}+02:00`;
+    return new Date(normalized).toLocaleString();
+  };
+
   return (
     <div className="min-h-screen bg-brand-bg text-brand-ink">
       <header className="sticky top-0 z-10 h-16 px-3 sm:px-6 flex items-center justify-between bg-brand-bg/90 backdrop-blur-md border-b border-brand-border">
@@ -149,8 +198,48 @@ export default function StaffReportDashboard({
           {/* Map picker */}
           <div className="space-y-3">
             <p className="text-xs font-bold uppercase tracking-wide text-brand-muted">Drag the pin to the affected location</p>
+
+            {/* Location search — same autocomplete the driver map uses */}
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-muted pointer-events-none" />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                placeholder="Search city, street, or landmark..."
+                className="w-full h-10 pl-9 pr-3 rounded-xl border border-brand-border bg-white text-sm outline-none focus:ring-2 focus:ring-brand-ink/20"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => { setSearchQuery(""); setSuggestions([]); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-brand-muted hover:text-brand-ink"
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
+              {Array.isArray(suggestions) && suggestions.length > 0 && (
+                <ul className="absolute z-20 mt-1 w-full bg-white border border-brand-border rounded-xl shadow-lg max-h-56 overflow-y-auto">
+                  {suggestions.map((feature, i) => (
+                    <li key={i}>
+                      <button
+                        type="button"
+                        onClick={() => selectPlace(feature)}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-brand-bg flex items-start gap-2"
+                      >
+                        <MapPin size={14} className="mt-0.5 shrink-0 text-brand-muted" />
+                        <span className="min-w-0">
+                          {feature?.properties?.formatted || feature?.properties?.label || "Unknown place"}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
             <div className="h-80 rounded-2xl overflow-hidden border border-brand-border shadow-sm">
-              <Map center={[pin.lng, pin.lat]} zoom={12}>
+              <Map ref={mapRef} center={[pin.lng, pin.lat]} zoom={12}>
                 <MapMarker
                   draggable
                   longitude={pin.lng}
@@ -212,7 +301,7 @@ export default function StaffReportDashboard({
                         <p className="font-bold text-sm capitalize">{r.hazardType.replace(/_/g, " ")}</p>
                         <p className="text-xs text-brand-muted">
                           {/* MySQL DECIMAL columns come back as strings over JSON, not numbers */}
-                          {Number(r.latitude).toFixed(4)}, {Number(r.longitude).toFixed(4)} · {new Date(r.createdAt).toLocaleString()}
+                          {Number(r.latitude).toFixed(4)}, {Number(r.longitude).toFixed(4)} · {formatReportDate(r.createdAt)}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
