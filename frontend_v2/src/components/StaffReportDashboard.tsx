@@ -301,7 +301,7 @@ export default function StaffReportDashboard({
                         <p className="font-bold text-sm capitalize">{r.hazardType.replace(/_/g, " ")}</p>
                         <p className="text-xs text-brand-muted">
                           {/* MySQL DECIMAL columns come back as strings over JSON, not numbers */}
-                          {Number(r.latitude).toFixed(4)}, {Number(r.longitude).toFixed(4)} · {formatReportDate(r.createdAt)}
+                          <span className="font-bold text-brand-ink">ID {r.id}</span> · {Number(r.latitude).toFixed(4)}, {Number(r.longitude).toFixed(4)} · {formatReportDate(r.createdAt)}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
