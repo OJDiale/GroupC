@@ -112,6 +112,31 @@ export const loginWithEmailAndPassword = async (identifier, password) => {
 
 
 /**
+ * Resets a user's password given their username + email (no OTP/email
+ * verification — see backend route for the tradeoff this accepts).
+ */
+export async function resetPassword(username, email, newPassword, confirmPassword) {
+    try {
+        const response = await fetch(`${BASE_URL}/api/auth/reset-password`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, email, newPassword, confirmPassword })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "Failed to reset password.");
+        }
+
+        return data;
+    } catch (error) {
+        console.error("Password reset error:", error.message);
+        throw error;
+    }
+}
+
+/**
  * Fetches fresh profile database records for the securely logged-in session user.
  */
 export const userData = async () => {
