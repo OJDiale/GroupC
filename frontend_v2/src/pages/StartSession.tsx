@@ -1,46 +1,40 @@
-import { Outlet, useNavigate } from "react-router";
-import { ArrowLeft } from "lucide-react";
+import { Outlet } from "react-router";
 import Logo from "../components/Logo";
-import RouteDiamondMockup from "../components/RouteDiamondMockup";
+import AuthHeroGraphic from "../components/auth/AuthHeroGraphic";
 import { usePageTitle } from "@/lib/usePageTitle";
 
+/** Shared shell for /login, /login/signin and /login/forgot-password. */
 export default function StartSession() {
   usePageTitle("Sign In");
-  const navigate = useNavigate();
   return (
     <div className="w-full min-h-screen flex bg-brand-bg text-brand-ink">
-      <div className="max-lg:hidden relative w-1/2 bg-brand-ink overflow-hidden flex items-center justify-center p-12">
-        <button
-          className="absolute top-6 left-6 z-10 flex items-center gap-2 text-sm font-medium text-white/80 hover:text-white transition-colors"
-          onClick={() => navigate("/")}
-        >
-          <ArrowLeft size={16} /> Back to home
-        </button>
-
-        <div className="absolute top-8 right-8 z-10">
-          <Logo ringClassName="text-white" />
+      <div className="max-lg:hidden w-2/5 shrink-0 min-h-screen bg-gradient-to-b from-auth-navy to-auth-teal flex flex-col items-center px-10 py-12 text-center">
+        <div className="flex items-center justify-center gap-2">
+          <Logo size={32} showWordmark={false} ringClassName="text-white" />
+          <span className="logo-font text-white">Mapper</span>
         </div>
 
-        <RouteDiamondMockup className="w-72 h-72" phoneClassName="w-40" />
+        <div className="mt-10">
+          <p className="text-2xl font-bold text-white leading-tight">Safe Routing.</p>
+          <p className="text-2xl font-bold text-auth-cyan leading-tight">Stress-Free Travel.</p>
+        </div>
 
-        <p className="absolute bottom-8 left-8 right-8 text-sm text-slate-400 max-w-xs">
-          Routes that weigh hazard reports, not just distance and time.
+        <p className="mt-6 max-w-xs text-sm text-white/85">
+          Advanced map routing algorithm for safe and efficient travel around the country.
         </p>
+
+        <div className="flex-1 flex items-center justify-center">
+          <AuthHeroGraphic />
+        </div>
       </div>
 
-      <div className="flex-1 flex flex-col min-h-screen">
+      <div className="flex-1 min-h-screen flex flex-col">
         {/* Mobile-only header: the branded left panel is hidden below lg */}
-        <div className="lg:hidden flex items-center justify-between p-4 sm:p-6">
-          <button
-            className="flex items-center gap-2 text-sm font-medium text-brand-muted hover:text-brand-ink transition-colors"
-            onClick={() => navigate("/")}
-          >
-            <ArrowLeft size={16} /> Home
-          </button>
+        <div className="lg:hidden flex items-center justify-center p-4 sm:p-6">
           <Logo size={26} />
         </div>
 
-        <div className="flex-1 flex items-center justify-center p-6 pt-0 lg:pt-6">
+        <div className="flex-1 flex items-center justify-center px-6 pb-10">
           <Outlet />
         </div>
       </div>
