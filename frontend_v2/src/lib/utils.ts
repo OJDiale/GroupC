@@ -449,8 +449,34 @@ export async function generateSafeRoute(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * Snaps a raw coordinate to the nearest drivable road using OSRM's
+ * /nearest service. Without this, the geometrically-computed detour
+ * waypoints in fetchSafeRoadRoute can land on a side street that is a
+ * dead-end or not drivable, which OSRM then routes down — creating the
+ * "dead-end detour" the route previously produced even when it still
+ * reached the destination.
+ */
+async function snapToRoad(lon: number, lat: number): Promise<GeoCoordinate> {
+  const url = `${OSRM_BASE}/nearest/v1/driving/${lon},${lat}?number=1`;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return [lon, lat];
+    const data = await response.json();
+    const loc = data?.waypoints?.[0]?.location;
+    if (Array.isArray(loc) && loc.length === 2) {
+      return [Number(loc[0]), Number(loc[1])];
+    }
+    return [lon, lat];
+  } catch {
+    return [lon, lat];
+  }
+}
+
+/**
  * Calculates a real street route, actively steering the routing engine
  * around hazard zones by generating physical detour checkpoints.
+ * Detour waypoints are snapped to the road network first so the engine
+ * never routes through a coordinate that sits on a dead-end street.
  */
 export async function fetchSafeRoadRoute(
     start: GeoCoordinate,
@@ -496,9 +522,25 @@ export async function fetchSafeRoadRoute(
     const clearance = (pt: GeoCoordinate) =>
         Math.min(...avoidList.map(h => haversineMeters(pt, h)));
 
-    const detourWaypoint = clearance(candidateA) >= clearance(candidateB)
-        ? candidateA
-        : candidateB;
+    // Snap both candidates to the real road network before choosing one —
+    // a raw offset point can sit on a dead-end or un-drivable street.
+    const [snappedA, snappedB] = await Promise.all([
+        snapToRoad(candidateA[0], candidateA[1]),
+        snapToRoad(candidateB[0], candidateB[1]),
+    ]);
+
+    let detourWaypoint =
+        clearance(snappedA) >= clearance(snappedB) ? snappedA : snappedB;
+
+    // Guard: if OSRM snapped both candidates back onto the breached
+    // street (within 10 m of the breach point), fall back to the raw
+    // candidate with the most clearance instead of routing down the
+    // same hazard segment we're trying to avoid.
+    if (haversineMeters(detourWaypoint, breachPoint) < 10) {
+        detourWaypoint = clearance(candidateA) >= clearance(candidateB)
+            ? candidateA
+            : candidateB;
+    }
 
     const legA = await fetchSafeRoadRoute(start, detourWaypoint, avoidList, safetyRadiusMeters, _depth + 1);
     const legB = await fetchSafeRoadRoute(detourWaypoint, destination, avoidList, safetyRadiusMeters, _depth + 1);

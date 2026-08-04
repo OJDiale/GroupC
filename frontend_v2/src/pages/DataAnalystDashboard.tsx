@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router";
-import { LogOut, ArrowLeft, RefreshCw, TrendingUp, Sparkles, ArrowUpDown, ClipboardList, ShieldAlert } from "lucide-react";
+import { LogOut, RefreshCw, TrendingUp, Sparkles, ArrowUpDown, ClipboardList, ShieldAlert } from "lucide-react";
 import { Map, MapMarker, MarkerContent, MarkerPopup } from "@/components/ui/map";
 import Logo from "@/components/Logo";
 import ReportExportButtons from "@/components/ReportExportButtons";
@@ -41,6 +41,7 @@ export default function DataAnalystDashboard() {
   const [includeResolved, setIncludeResolved] = useState(false);
   const [sortBy, setSortBy] = useState<"count" | "lat" | "lng">("count");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -79,6 +80,34 @@ export default function DataAnalystDashboard() {
     navigate("/");
   };
 
+  // This dashboard must only be left via the logout button — mirrors the
+  // admin portal's guard (AdminSidebarLayout). Pressing the browser Back
+  // button re-pushes the current URL (canceling the navigation) and offers
+  // to log out instead of silently trapping the user.
+  useEffect(() => {
+    const pushGuard = () => window.history.pushState(null, "", window.location.href);
+    pushGuard();
+    const onPopState = () => {
+      pushGuard();
+      setConfirmLogout(true);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  // Typing a new URL into the address bar is a full page navigation that JS
+  // can't intercept or replace with a custom prompt — beforeunload is the
+  // only hook browsers allow, and it can only trigger their own generic
+  // "Leave site?" confirmation.
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
+
   const center: [number, number] = hotspots.length
     ? [hotspots[0].lng, hotspots[0].lat]
     : [28.1914, -25.7566];
@@ -87,9 +116,6 @@ export default function DataAnalystDashboard() {
     <div className="min-h-screen bg-brand-bg text-brand-ink">
       <header className="sticky top-0 z-10 h-16 px-3 sm:px-6 flex items-center justify-between bg-brand-bg/90 backdrop-blur-md border-b border-brand-border">
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-          <button onClick={() => navigate("/")} className="text-brand-muted hover:text-brand-ink shrink-0" title="Back to site">
-            <ArrowLeft size={18} />
-          </button>
           <Logo size={24} showWordmark={false} />
         </div>
         <div className="flex items-center gap-4 shrink-0">
@@ -228,6 +254,33 @@ export default function DataAnalystDashboard() {
           </div>
         </div>
       </main>
+
+      {confirmLogout && (
+        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl text-center">
+            <h3 className="text-lg font-bold text-brand-ink">Log out?</h3>
+            <p className="text-sm text-brand-muted mt-2">
+              You can't go back to the site from this dashboard. Would you like to log out instead?
+            </p>
+            <div className="flex items-center justify-center gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => setConfirmLogout(false)}
+                className="px-4 py-2 rounded-lg border border-brand-border text-sm font-semibold text-brand-muted hover:text-brand-ink"
+              >
+                Stay here
+              </button>
+              <button
+                type="button"
+                onClick={logout}
+                className="px-4 py-2 rounded-lg bg-[#171e5b] text-white text-sm font-semibold hover:opacity-90"
+              >
+                Log out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

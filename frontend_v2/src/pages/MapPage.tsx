@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, Outlet, useSearchParams } from "react-router";
+import { NavLink, Outlet, useSearchParams } from "react-router";
 import {
   Mountain, Map as MapIcon,
   History, Radio,
@@ -14,7 +14,6 @@ import {
   X as XIcon
 } from "lucide-react";
 import { Map, MapControls, MapMarker, MarkerContent, MarkerPopup, type MapRef } from "@/components/ui/map";
-import type { LngLatLike } from "maplibre-gl";
 import DialogDemo from "../components/Popup";
 import { Button } from "@/components/ui/button";
 import spaceImage from "../assets/space_image.jpg"
@@ -41,6 +40,7 @@ import { SubscriptionDrawer } from "@/components/SubscriptionDrawer";
 import Logo from "@/components/Logo";
 import NotificationCenter from "@/components/NotificationCenter";
 import { usePageTitle } from "@/lib/usePageTitle";
+import MapProfilePanel from "@/components/MapProfilePanel";
 
 type Role = "ADMIN" | "PREMIUM" | "USER"
 
@@ -53,14 +53,17 @@ export default function MapPage(): React.JSX.Element {
   };
 
   type StyleKey = keyof typeof styles;
-  const [coords, setCoords] = useState<LngLatLike | undefined>([28.1914, -25.7566]);
+  // Plain [lon, lat] tuple — never undefined, so indexing coords[0]/coords[1]
+  // typechecks (LngLatLike is a union that can't be indexed safely) and the
+  // map's center prop accepts the tuple directly.
+  const [coords, setCoords] = useState<[number, number]>([28.1914, -25.7566]);
   const [locationSearched, setLocationSearched] = useState({ name: "", lon: 0, lat: 0 });
-  const [dataSuggested, setDataSuggested] = useState([]);
-  const [style, setStyle] = useState<StyleKey>("default");
+  const [dataSuggested, setDataSuggested] = useState<any[]>([]);
+  const [style, setStyle] = useState<StyleKey>("openstreetmap");
   const mapRef = useRef<MapRef>(null);
-  const is3D = style === "openstreetmap3d";
   const selectedStyle = styles[style];
   const [report, setReport] = useState<boolean>(false)
+  const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false)
   const [draggableMarker, setDraggableMarker] = useState({
     lng: (coords[0] as number),
     lat: (coords[1] as number),
@@ -87,12 +90,15 @@ export default function MapPage(): React.JSX.Element {
     });
   }, [coords]);
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [, setIsLoading] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams()
   const [routes, setRoutes] = useState<RouteData[]>([]);
   const [disPlacesToAvoid, setDisPlacesToAvoid] = useState<boolean>(false)
 
-  const [avoidanceGeoJSON, setAvoidanceGeoJSON] = useState({
+  const [avoidanceGeoJSON, setAvoidanceGeoJSON] = useState<{
+    type: "FeatureCollection";
+    features: any[];
+  }>({
     type: "FeatureCollection",
     features: []
   });
@@ -103,7 +109,7 @@ export default function MapPage(): React.JSX.Element {
   const [data, setData] = useState<Array<GeoCoordinate>>([])
   const [placesToAvoid, setPlacesToAvoid] = useState<[number, number][]>([])
   const [openSubscripDraw, setOpenSubscripDraw] = useState<boolean>(false)
-  const [userRole, setUserRole] = useState<Role>("USER");
+  const [, setUserRole] = useState<Role>("USER");
   const [hazardType, setHazardType] = useState<string>("accident");
   const isEmpty: boolean = searchParams.get("lon") === null && searchParams.get("lat") === null
 
@@ -172,7 +178,7 @@ export default function MapPage(): React.JSX.Element {
 
     // 4. Build avoidance features for the Layer overlay
     const newFeatures: any[] = [];
-    accidentCoords.forEach((point, index) => {
+    accidentCoords.forEach((point) => {
       if (
         doesRouteInterceptAvoidZone(routes[0]?.coordinates, point as [number, number]) ||
         doesRouteInterceptAvoidZone(routes[1]?.coordinates, point as [number, number])
@@ -209,7 +215,7 @@ export default function MapPage(): React.JSX.Element {
             <div
               className={`${
                 t.visible ? "animate-enter" : "animate-leave"
-              } max-w-xs w-full bg-slate-900/95 border border-blue-500/40 shadow-xl 
+              } max-w-xs w-full bg-slate-900/95 border border-blue-500/40 shadow-xl
                 rounded-lg pointer-events-auto flex backdrop-blur-md overflow-hidden group`}
             >
               <div className="w-1 bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
@@ -232,7 +238,7 @@ export default function MapPage(): React.JSX.Element {
               </div>
               <button
                 onClick={() => toast.dismiss(t.id)}
-                className="px-3 border-l border-slate-800 text-[10px] font-bold uppercase 
+                className="px-3 border-l border-slate-800 text-[10px] font-bold uppercase
                            text-slate-500 hover:text-white hover:bg-white/5 transition-colors"
               >
                 Hide
@@ -247,7 +253,7 @@ export default function MapPage(): React.JSX.Element {
             <div
               className={`${
                 t.visible ? "animate-enter" : "animate-leave"
-              } max-w-xs w-full bg-slate-900/95 border border-blue-500/40 shadow-xl 
+              } max-w-xs w-full bg-slate-900/95 border border-blue-500/40 shadow-xl
                 rounded-lg pointer-events-auto flex backdrop-blur-md overflow-hidden group`}
             >
               <div className="w-1 bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
@@ -281,7 +287,7 @@ export default function MapPage(): React.JSX.Element {
                   getData();
                   toast.dismiss(t.id);
                 }}
-                className="px-3 border-l border-slate-800 text-[10px] font-bold uppercase 
+                className="px-3 border-l border-slate-800 text-[10px] font-bold uppercase
                            text-slate-500 hover:text-white hover:bg-white/5 transition-colors"
               >
                 Safe Path
@@ -299,7 +305,7 @@ export default function MapPage(): React.JSX.Element {
 
   async function getData() {
     const data = await fetchSafeRoadRoute(
-      [coords[0] as number || 0, coords[1] as number || 0],
+      [coords[0], coords[1]],
       [distinationLon as number, distinationLat as number],
       placesToAvoid
     )
@@ -310,26 +316,13 @@ export default function MapPage(): React.JSX.Element {
     runCheck()
   }
 
-  // ── Background re-route poller (Phase 6 proposal gap) ───────────────────
-  // While a trip is active, periodically re-run the exact same SafeMaster
-  // check the "AI SAFE PATH" button triggers — same runCheck(), same toast
-  // prompt UI, no new scoring logic (parallel-port rule: nothing to mirror
-  // here since the scoring itself is untouched). Catches hazards reported
-  // by other users after the driver already started their trip. A ref
-  // holds the latest runCheck closure so the interval always sees current
-  // coords/destination without needing to be torn down and rebuilt on
-  // every geolocation update.
-  const runCheckRef = useRef(runCheck);
-  runCheckRef.current = runCheck;
-
-  useEffect(() => {
-    if (!activeTripId) return;
-    const REROUTE_POLL_MS = 90000;
-    const interval = setInterval(() => {
-      runCheckRef.current();
-    }, REROUTE_POLL_MS);
-    return () => clearInterval(interval);
-  }, [activeTripId]);
+  // ── Deliberately no background auto-rerun loop here ─────────────────────
+  // The SafeMaster check ("AI SAFE PATH") must only ever run when the user
+  // presses the button. Earlier versions re-ran runCheck() automatically
+  // on an interval while a trip was active, which fired the full AI scan
+  // (hazard fetch + scoring + route generation + toast) every few seconds
+  // without the user asking for it. That poller has been removed: analysis
+  // is now strictly on-demand.
 
   // 3. LOGIC: Handle Search API (Debounced)
   useEffect(() => {
@@ -400,8 +393,8 @@ export default function MapPage(): React.JSX.Element {
 
     // Log the trip the same way a search-picked destination is logged.
     try {
-      const stPoint = await geocodeReverse(coords[1] as number, coords[0] as number);
-      const sl = stPoint?.formatted;
+      const stPoint = await geocodeReverse(coords[1], coords[0]);
+      const sl = stPoint?.formatted || `${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}`;
       const logResult = await logUserDestination({ startLocation: sl, endLocation: name }, localStorage.getItem("token") || "");
       if (logResult.logId) setActiveTripId(logResult.logId);
     } catch (err) {
@@ -432,15 +425,16 @@ export default function MapPage(): React.JSX.Element {
 
   return (
     <main className="relative h-screen w-full overflow-hidden font-sans antialiased text-slate-100">
-  
+
       <header className="absolute top-3 left-3 right-3 sm:top-6 sm:left-6 sm:right-6 z-[1000] flex items-start gap-2 pointer-events-none flex-wrap">
-        <Link
-          to="/"
-          title="Back to Mapper home"
+        <button
+          type="button"
+          onClick={() => setIsProfileOpen(true)}
+          title="Open profile"
           className="flex items-center justify-center size-10 sm:size-11 shrink-0 rounded-2xl bg-slate-900/90 backdrop-blur-2xl shadow-2xl border border-blue-500/30 pointer-events-auto text-slate-300 hover:text-blue-300 transition-colors"
         >
           <Logo size={20} showWordmark={false} ringClassName="text-slate-300" />
-        </Link>
+        </button>
 
         <div className="flex items-center justify-center size-10 sm:size-11 shrink-0 rounded-2xl bg-slate-900/90 backdrop-blur-2xl shadow-2xl border border-blue-500/30 pointer-events-auto">
           <NotificationCenter dark />
@@ -457,14 +451,14 @@ export default function MapPage(): React.JSX.Element {
                   key={i}
                   className="p-3 flex items-center gap-2 hover:bg-blue-900/40 cursor-pointer transition-colors border-b border-slate-800 last:border-0"
                   onClick={async () => {
-                    const destinationName = data?.properties?.formatted;
+                    const destinationName = data?.properties?.formatted || "Pinned location";
                     setLocationSearched({
                       name: destinationName,
                       lon: data?.geometry?.coordinates[0],
                       lat: data?.geometry?.coordinates[1]
                     })
-                    const stPoint = await geocodeReverse(coords[1] as number, coords[0] as number)
-                    const sl = stPoint?.formatted
+                    const stPoint = await geocodeReverse(coords[1], coords[0])
+                    const sl = stPoint?.formatted || `${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}`
                     const logResult = await logUserDestination({ startLocation: sl, endLocation: destinationName }, localStorage.getItem("token") || "")
                     if (logResult.logId) setActiveTripId(logResult.logId)
                   }}
@@ -602,11 +596,11 @@ export default function MapPage(): React.JSX.Element {
         </div>
       )}
 
-      <section 
-        style={{ 
-          backgroundImage: `url(${spaceImage})`, 
-          backgroundSize: 'cover', 
-          backgroundPosition: 'center' 
+      <section
+        style={{
+          backgroundImage: `url(${spaceImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
         }}
         className="absolute inset-0 z-0"
       >
@@ -617,7 +611,7 @@ export default function MapPage(): React.JSX.Element {
           zoom={3}
           styles={selectedStyle ? { light: selectedStyle, dark: selectedStyle } : undefined}
         >
-          {disPlacesToAvoid && <Layer geojsonData={avoidanceGeoJSON} />} 
+          {disPlacesToAvoid && <Layer geojsonData={avoidanceGeoJSON} />}
 
           {report && (
             <MapMarker
@@ -660,8 +654,8 @@ export default function MapPage(): React.JSX.Element {
                       <label
                         key={hazard.id}
                         className={`px-2 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-tight text-center cursor-pointer border transition-all select-none
-                          ${hazardType === hazard.id 
-                            ? "bg-red-600/20 border-red-500 text-red-400" 
+                          ${hazardType === hazard.id
+                            ? "bg-red-600/20 border-red-500 text-red-400"
                             : "bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-300 hover:bg-slate-800"}`}
                       >
                         <input
@@ -677,7 +671,7 @@ export default function MapPage(): React.JSX.Element {
                     ))}
                   </div>
 
-                  <Button 
+                  <Button
                     className="w-full bg-red-600 hover:bg-red-700 h-8 rounded-lg text-[10px] font-bold border-none text-white mt-0.5"
                     onClick={async () => {
                       try {
@@ -762,7 +756,7 @@ export default function MapPage(): React.JSX.Element {
             so it can render the correct route geometry (best or chosen alternative).
           */}
           <Outlet context={{ data, placesToAvoid, coords, locationSearched, draggableMarker, runCheck, safeRouteResult, selectedAltIndex }} />
-          
+
           <div className="absolute bottom-24 right-10">
             <MapControls position="bottom-right" />
           </div>
@@ -770,7 +764,7 @@ export default function MapPage(): React.JSX.Element {
       </section>
 
       <SubscriptionDrawer
-        isOpen={openSubscripDraw} 
+        isOpen={openSubscripDraw}
         onClose={() => setOpenSubscripDraw(false)}
         setValue={setUserRole}
       />
@@ -857,6 +851,10 @@ export default function MapPage(): React.JSX.Element {
           </Button>
         </div>
       </footer>
+
+      {isProfileOpen && (
+        <MapProfilePanel onClose={() => setIsProfileOpen(false)} />
+      )}
     </main>
   );
 }

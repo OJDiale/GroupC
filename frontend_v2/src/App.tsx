@@ -12,6 +12,7 @@ import LoginPage, {action as loginAction} from "./pages/LoginPage.tsx"
 import ForgotPasswordPage, {action as forgotPasswordAction} from "./pages/ForgotPasswordPage.tsx"
 import AccountHolder , {loader as accountHolderLoader} from "./pages/AccountHolder.tsx"
 import { loggIn } from "./lib/utils.ts"
+import { dashboardPathForRole } from "./database/auth.js"
 import HistoralEvents from "./pages/HistoricalEvents.tsx"
 import CurrentEventMap from "./pages/CurrentEventMap.tsx"
 import AdminSidebarLayout from "./components/AdminSidebarLayout.tsx"
@@ -55,6 +56,18 @@ function roleLoader(...allowedRoles: string[]) {
     }
 }
 
+// Sends an already-logged-in user straight back to their own dashboard any
+// time they land on the marketing homepage — whether via a link/button
+// click or by navigating the browser URL/back button directly to "/".
+function homeLoader() {
+    const token = localStorage.getItem("token")
+    if (token) {
+        const userType = localStorage.getItem("userType")
+        throw redirect(dashboardPathForRole(userType))
+    }
+    return null
+}
+
 
 function App() {
   
@@ -65,10 +78,10 @@ function App() {
              path="/"
              element={<Layout/>}
           >
-              <Route 
-                 index 
+              <Route
+                 index
                  element={<HomePage/>}
-         
+                 loader={homeLoader}
                 />
               <Route
                  path="account"

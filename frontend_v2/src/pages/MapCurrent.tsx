@@ -1,11 +1,10 @@
 import { useOutletContext, useSearchParams } from "react-router"
-import { MapControls, MarkerContent, MapMarker, MarkerPopup, MapRoute } from "../components/ui/map"
+import { MarkerContent, MapMarker, MarkerPopup, MapRoute } from "../components/ui/map"
 import { useEffect, useState, useMemo } from "react"
 import { type Distination, type PlaceInformation, type RouteData } from "../lib/types"
 import {
   reverseGeocoding,
   fetchRoutes,
-  fetchSafeRoadRoute,
   type GeoCoordinate,
   // ── SafeMaster rerouting ──────────────────────────────────────────────────
   type SafeRouteResult,
@@ -25,7 +24,6 @@ export default function MapCurrent() {
 
   const {
     coords,
-    placesToAvoid,
     data,
     safeRouteResult,
     selectedAltIndex,
@@ -34,13 +32,12 @@ export default function MapCurrent() {
   const [pinnedInfo, setPinnedInfo] = useState<Array<PlaceInformation>>([{ city: "", street: "" }])
   const [routes, setRoutes] = useState<RouteData[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
 
   const distinationLon = searchParams.get("lon") && Number(searchParams.get("lon"))
   const distinationLat = searchParams.get("lat") && Number(searchParams.get("lat"))
 
   useEffect(() => {
-    fetchRoutes(coords, distinationLat, distinationLon, setRoutes, setIsLoading)
+    fetchRoutes(coords, distinationLat, distinationLon, setRoutes, () => {})
     reverseGeocoding(coords, distinationLat, distinationLon, setPinnedInfo)
   }, [coords, distinationLat, distinationLon])
 
