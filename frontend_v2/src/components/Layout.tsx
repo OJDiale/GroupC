@@ -13,7 +13,7 @@ const NAV_ITEMS = [
 ];
 
 export default function HomePage() {
-  const isLoggedIn = localStorage.getItem("token");
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => Boolean(localStorage.getItem("token")));
   const [user, setUser] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
@@ -46,7 +46,18 @@ export default function HomePage() {
           localStorage.setItem("userId", JSON.stringify(userDetails.user_id));
         }
       } catch (err) {
+        // A stale/expired/invalid token — the backend rejected it. Clear it
+        // out and flip the header back to logged-out immediately, instead
+        // of leaving "Profile"/"Open Map" visible for a session that no
+        // longer actually authenticates (which is what let a stale token
+        // look logged-in everywhere except the one page that checks).
         console.error("Failed to sync homepage identity:", err);
+        localStorage.removeItem("token");
+        localStorage.removeItem("userType");
+        localStorage.removeItem("isAdmin");
+        localStorage.removeItem("userId");
+        setUser(null);
+        setIsLoggedIn(false);
       }
     }
 
