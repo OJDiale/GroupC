@@ -24,7 +24,6 @@ export default function MapCurrent() {
 
   const {
     coords,
-    data,
     safeRouteResult,
     selectedAltIndex,
   }: MapCurrentContext = useOutletContext()
@@ -44,10 +43,9 @@ export default function MapCurrent() {
   // ── SafeMaster rerouting: decide which geometry to render ─────────────────
   //
   // Priority:
-  //   1. If `data` (fetchSafeRoadRoute result) has been computed, show it.
-  //   2. Else if a SafeRouteResult exists, show the selected alternative
+  //   1. If a SafeRouteResult exists, show the selected alternative
   //      (or the best route when no alternative is selected).
-  //   3. Otherwise fall back to the standard OSRM routes from fetchRoutes.
+  //   2. Otherwise fall back to the standard OSRM routes from fetchRoutes.
 
   const safeRouteCoords: GeoCoordinate[] | null = useMemo(() => {
     if (!safeRouteResult) return null;
@@ -92,19 +90,7 @@ export default function MapCurrent() {
 
   // ── Route rendering decision ───────────────────────────────────────────────
   const directions = (() => {
-    // 1. fetchSafeRoadRoute result (avoidance-detour path)
-    if (data.length >= 100) {
-      return (
-        <MapRoute
-          coordinates={data}
-          color="green"
-          width={6}
-          opacity={1}
-        />
-      );
-    }
-
-    // 2. SafeMaster generateSafeRoute result
+    // 1. SafeMaster generateSafeRoute result
     if (safeRouteCoords && safeRouteCoords.length > 0) {
       return (
         <MapRoute
@@ -116,7 +102,7 @@ export default function MapCurrent() {
       );
     }
 
-    // 3. Standard OSRM alternatives (original behaviour)
+    // 2. Standard OSRM alternatives (original behaviour)
     return sortedRoutes.map(({ route, index }) => {
       const isSelected = index === selectedIndex;
       return (

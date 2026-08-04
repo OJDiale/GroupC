@@ -21,7 +21,6 @@ import { type RouteData } from "../lib/types"
 import {
   fetchRoutes,
   doesRouteInterceptAvoidZone,
-  fetchSafeRoadRoute,
   type GeoCoordinate,
   submitHazardReport,
   fetchAndResolveHazardReports,
@@ -61,6 +60,7 @@ export default function MapPage(): React.JSX.Element {
   const [dataSuggested, setDataSuggested] = useState<any[]>([]);
   const [style, setStyle] = useState<StyleKey>("openstreetmap");
   const mapRef = useRef<MapRef>(null);
+  const hasCenteredOnUser = useRef(false);
   const selectedStyle = styles[style];
   const [report, setReport] = useState<boolean>(false)
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false)
@@ -106,7 +106,6 @@ export default function MapPage(): React.JSX.Element {
   const distinationLon = searchParams.get("lon") && Number(searchParams.get("lon"))
   const distinationLat = searchParams.get("lat") && Number(searchParams.get("lat"))
   const [isCalculating, setIsCalculating] = useState(false);
-  const [data, setData] = useState<Array<GeoCoordinate>>([])
   const [placesToAvoid, setPlacesToAvoid] = useState<[number, number][]>([])
   const [openSubscripDraw, setOpenSubscripDraw] = useState<boolean>(false)
   const [, setUserRole] = useState<Role>("USER");
@@ -127,7 +126,15 @@ export default function MapPage(): React.JSX.Element {
   useEffect(() => {
     const id = navigator.geolocation.watchPosition(
       (pos) => {
-        setCoords([pos.coords.longitude, pos.coords.latitude]);
+        const next: [number, number] = [pos.coords.longitude, pos.coords.latitude];
+        setCoords(next);
+        // Center on the user's location the first time a fix comes in, so
+        // the map opens there directly instead of the world-wide default
+        // view that previously required pressing "Me" to escape.
+        if (!hasCenteredOnUser.current) {
+          hasCenteredOnUser.current = true;
+          mapRef.current?.flyTo({ center: next, zoom: 12 });
+        }
       },
       (err) => console.error(err),
       { enableHighAccuracy: true }
@@ -199,16 +206,15 @@ export default function MapPage(): React.JSX.Element {
     setAvoidanceGeoJSON({ type: "FeatureCollection", features: newFeatures });
     setDisPlacesToAvoid(newFeatures.length > 0);
 
-    // 5. Toast notification — SafeMaster style with risk level, suppressed
-    // below the driver's chosen alert-sensitivity threshold.
+    // 5. Toast notification — SafeMaster style, suppressed below the
+    // driver's chosen alert-sensitivity threshold. Only the "route is
+    // clear" acknowledgment is shown here; the hazard-detected case is
+    // surfaced via the Route Risk Panel instead (which has working
+    // alternative-route selection), not a toast — that toast used to carry
+    // its own "Safe Path" button that called fetchSafeRoadRoute and broke
+    // the panel's alternative selection, since the two picked different
+    // route geometries to render.
     if (result && result.riskScore >= alertThreshold) {
-      const riskColor =
-        result.riskLevel === "SAFE"
-          ? "text-green-400"
-          : result.riskLevel === "WARNING"
-          ? "text-yellow-400"
-          : "text-red-400";
-
       if (result.riskLevel === "SAFE" && result.incidentsOnRoute === 0) {
         toast.custom(
           (t) => (
@@ -247,69 +253,11 @@ export default function MapPage(): React.JSX.Element {
           ),
           { duration: 3000, position: "top-center" }
         );
-      } else {
-        toast.custom(
-          (t) => (
-            <div
-              className={`${
-                t.visible ? "animate-enter" : "animate-leave"
-              } max-w-xs w-full bg-slate-900/95 border border-blue-500/40 shadow-xl
-                rounded-lg pointer-events-auto flex backdrop-blur-md overflow-hidden group`}
-            >
-              <div className="w-1 bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
-              <div className="flex-1 p-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0">
-                    <div className="h-8 w-8 rounded-md bg-blue-500/20 flex items-center justify-center border border-blue-400/20">
-                      <Sparkles className="h-4 w-4 text-blue-400" />
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-black text-blue-400 uppercase tracking-tighter">
-                      AI Scan Complete
-                    </p>
-                    <p className={`text-xs font-medium truncate ${riskColor}`}>
-                      {result.riskLevel} · {result.incidentsOnRoute} hazard(s) on route.
-                    </p>
-                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                      {result.explanation}
-                    </p>
-                    {result.alternatives.length > 0 && (
-                      <p className="text-[10px] text-blue-300 mt-0.5">
-                        {result.alternatives.length} safer alternative(s) available.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  getData();
-                  toast.dismiss(t.id);
-                }}
-                className="px-3 border-l border-slate-800 text-[10px] font-bold uppercase
-                           text-slate-500 hover:text-white hover:bg-white/5 transition-colors"
-              >
-                Safe Path
-              </button>
-            </div>
-          ),
-          { duration: 60000, position: "top-center" }
-        );
       }
     }
 
     setIsLoading(false);
     setIsCalculating(false);
-  }
-
-  async function getData() {
-    const data = await fetchSafeRoadRoute(
-      [coords[0], coords[1]],
-      [distinationLon as number, distinationLat as number],
-      placesToAvoid
-    )
-    setData(data)
   }
 
   function subscribe() {
@@ -426,7 +374,7 @@ export default function MapPage(): React.JSX.Element {
   return (
     <main className="relative h-screen w-full overflow-hidden font-sans antialiased text-slate-100">
 
-      <header className="absolute top-3 left-3 right-3 sm:top-6 sm:left-6 sm:right-6 z-[1000] flex items-start gap-2 pointer-events-none flex-wrap">
+      <header className="absolute top-3 left-3 right-3 sm:top-6 sm:left-6 sm:right-6 z-[1000] flex items-center justify-between gap-2 pointer-events-none">
         <button
           type="button"
           onClick={() => setIsProfileOpen(true)}
@@ -436,10 +384,7 @@ export default function MapPage(): React.JSX.Element {
           <Logo size={20} showWordmark={false} ringClassName="text-slate-300" />
         </button>
 
-        <div className="flex items-center justify-center size-10 sm:size-11 shrink-0 rounded-2xl bg-slate-900/90 backdrop-blur-2xl shadow-2xl border border-blue-500/30 pointer-events-auto">
-          <NotificationCenter dark />
-        </div>
-
+        <div className="flex-1 flex justify-center min-w-0">
         <div className="flex flex-wrap items-center gap-1 bg-slate-900/90 backdrop-blur-2xl p-1.5 rounded-2xl shadow-2xl border border-blue-500/30 pointer-events-auto max-w-full">
 
           <div className="flex items-center bg-blue-950/40 rounded-xl px-2 border border-white/10 mr-1">
@@ -519,6 +464,11 @@ export default function MapPage(): React.JSX.Element {
               <LocateFixed size={16} /> <span className="hidden lg:inline">Me</span>
             </button>
           </nav>
+        </div>
+        </div>
+
+        <div className="flex items-center justify-center size-10 sm:size-11 shrink-0 rounded-2xl bg-slate-900/90 backdrop-blur-2xl shadow-2xl border border-blue-500/30 pointer-events-auto">
+          <NotificationCenter dark />
         </div>
       </header>
 
@@ -755,7 +705,7 @@ export default function MapPage(): React.JSX.Element {
             Pass safeRouteResult + selectedAltIndex to MapCurrent via Outlet context
             so it can render the correct route geometry (best or chosen alternative).
           */}
-          <Outlet context={{ data, placesToAvoid, coords, locationSearched, draggableMarker, runCheck, safeRouteResult, selectedAltIndex }} />
+          <Outlet context={{ placesToAvoid, coords, locationSearched, draggableMarker, runCheck, safeRouteResult, selectedAltIndex }} />
 
           <div className="absolute bottom-24 right-10">
             <MapControls position="bottom-right" />
@@ -811,11 +761,12 @@ export default function MapPage(): React.JSX.Element {
             <select
               value={style}
               onChange={(e) => setStyle(e.target.value as StyleKey)}
+              style={{ colorScheme: "dark" }}
               className="bg-transparent text-white text-[9px] sm:text-[10px] font-bold uppercase outline-none cursor-pointer min-w-0 max-w-[4.5rem] sm:max-w-none"
             >
-              <option value="default">Standard</option>
-              <option value="openstreetmap">Detailed</option>
-              <option value="openstreetmap3d">3D Terrain</option>
+              <option className="bg-slate-900 text-white" value="default">Standard</option>
+              <option className="bg-slate-900 text-white" value="openstreetmap">Detailed</option>
+              <option className="bg-slate-900 text-white" value="openstreetmap3d">3D Terrain</option>
             </select>
           </div>
 
