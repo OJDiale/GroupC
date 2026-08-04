@@ -1,19 +1,40 @@
-import mapImage from "../assets/map_image1.png"
-import React, { useState } from "react"
-import { ChevronsLeft, ChevronsRight, MapPin, ShieldCheck, Zap, Compass } from 'lucide-react';
-import { newsItems } from "../lib/utils";
-import { type NewsItem } from "../lib/types"
+import React from "react"
+import { ShieldCheck, MapPin, Compass, Route, ShieldAlert, Globe2 } from 'lucide-react';
 import { useNavigate } from "react-router";
-import RouteDiamondMockup from "../components/RouteDiamondMockup";
+import AuthHeroGraphic from "../components/auth/AuthHeroGraphic";
 import { usePageTitle } from "@/lib/usePageTitle";
+
+const FEATURES = [
+    {
+        icon: ShieldCheck,
+        title: "Safety Analysis",
+        description: "High-risk zone detection using localized incident history.",
+    },
+    {
+        icon: MapPin,
+        title: "Smart Routing",
+        description: "Path optimization that avoids hazards nearest to your current location.",
+    },
+    {
+        icon: Route,
+        title: "Dynamic Routing",
+        description: "Allows seamless toggles between standard, detailed, and immersive 3D globe models.",
+    },
+    {
+        icon: ShieldAlert,
+        title: "Threat Mitigation",
+        description: "Instantly broadcast hazardous signals or evaluate route segments for real-time risk barriers.",
+    },
+    {
+        icon: Globe2,
+        title: "Geoapify Powered",
+        description: "Hyper-precise autocomplete token lookups feed live positional nodes smoothly.",
+    },
+];
 
 export default function HomePage(): React.JSX.Element {
     usePageTitle("Home");
-    const [currentIndex, setCurrentIndex] = useState<number>(0)
     const navigate = useNavigate()
-
-    const nextItem = () => setCurrentIndex(prev => (prev < newsItems.length - 1 ? prev + 1 : 0))
-    const prevItem = () => setCurrentIndex(prev => (prev <= 0 ? newsItems.length - 1 : prev - 1))
 
     return (
         <div className="flex flex-col w-full bg-brand-bg text-brand-ink font-sans">
@@ -27,13 +48,13 @@ export default function HomePage(): React.JSX.Element {
                             Safe Routing.<br />Stress-free travel.
                         </h1>
                         <p className="text-brand-muted text-base md:text-lg max-w-md mx-auto lg:mx-0">
-                            Give yourself ease of mind and travel safely and efficiently by making use of our
-                            hazard-aware rerouting algorithm.
+                            Give yourself ease of mind and experience safe and efficient by making use of our
+                            rerouting algorithm.
                         </p>
                         <div className="pt-2">
                             <button
                                 onClick={() => navigate("/map")}
-                                className="group inline-flex items-center gap-2 px-7 py-3.5 bg-brand-ink text-white text-sm font-bold rounded-full transition-all hover:bg-brand-blue-dark hover:scale-[1.02]"
+                                className="group inline-flex items-center gap-2 px-7 py-3.5 border-4 border-[#15175b] bg-gradient-to-r from-auth-navy to-auth-teal text-white text-sm font-bold rounded-full transition-all hover:bg-none hover:bg-white hover:text-[#15175b] hover:scale-[1.02]"
                             >
                                 <Compass size={16} className="transition-transform group-hover:rotate-45" />
                                 Map Explorer
@@ -41,98 +62,28 @@ export default function HomePage(): React.JSX.Element {
                         </div>
                     </div>
 
-                    <RouteDiamondMockup
+                    <AuthHeroGraphic
                         className="w-72 h-72 md:w-96 md:h-96 mx-auto"
                         phoneClassName="w-44 md:w-56"
                     />
                 </div>
             </section>
 
-            {/* TRENDING SECTION */}
-            <section className="py-20 px-6 max-w-7xl mx-auto w-full space-y-10">
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-brand-border pb-6">
-                    <div>
-                        <span className="text-brand-blue text-xs font-bold uppercase tracking-[0.2em]">Real-time Intelligence</span>
-                        <h2 className="text-2xl md:text-3xl font-bold mt-2">Trending across the Republic</h2>
-                    </div>
-                    <p className="text-sm text-brand-muted max-w-xs">Live updates from verified sources and community reports.</p>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {/* Featured News: Large Bento Box */}
-                    <div className="lg:col-span-8 relative group h-[300px] sm:h-[420px] rounded-3xl overflow-hidden border border-brand-border bg-white shadow-sm">
-                        {newsItems.map((item: NewsItem, index: number) => (
-                            <div
-                                key={item.id}
-                                className={`absolute inset-0 transition-all duration-1000 ${index === currentIndex ? "opacity-100 scale-100" : "opacity-0 scale-105 pointer-events-none"}`}
-                                style={{ backgroundImage: `url(${item.src})`, backgroundSize: "cover", backgroundPosition: "center" }}
-                            >
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent flex flex-col justify-end p-5 sm:p-10">
-                                    <span className="bg-brand-blue text-[10px] font-bold px-3 py-1 rounded-full text-white uppercase mb-4 inline-block w-fit">Flash Report</span>
-                                    <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-2">{item.title}</h3>
-                                    <p className="text-sm text-slate-200 line-clamp-2 max-w-xl">{item.description}</p>
-                                </div>
-                            </div>
-                        ))}
-
-                        <div className="absolute bottom-4 right-4 sm:bottom-10 sm:right-10 flex gap-3 z-20">
-                            <button onClick={prevItem} className="p-2.5 sm:p-3 rounded-full bg-white/20 backdrop-blur-md hover:bg-white/30 text-white transition-all">
-                                <ChevronsLeft size={20} />
-                            </button>
-                            <button onClick={nextItem} className="p-2.5 sm:p-3 rounded-full bg-white/20 backdrop-blur-md hover:bg-white/30 text-white transition-all">
-                                <ChevronsRight size={20} />
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Small Bento Box: Features */}
-                    <div className="lg:col-span-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 lg:grid-rows-2 gap-6">
-                        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-brand-border shadow-sm flex flex-col justify-center space-y-3 hover:border-brand-blue/40 transition-colors">
-                            <ShieldCheck className="text-brand-blue" size={30} />
-                            <h4 className="text-lg font-bold">Safety Analysis</h4>
-                            <p className="text-xs leading-relaxed text-brand-muted">High-risk zone detection using localized incident history.</p>
-                        </div>
-                        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-brand-border shadow-sm flex flex-col justify-center space-y-3 hover:border-brand-blue/40 transition-colors">
-                            <MapPin className="text-brand-blue" size={30} />
-                            <h4 className="text-lg font-bold">Smart Routing</h4>
-                            <p className="text-xs leading-relaxed text-brand-muted">Path optimization that avoids hazards nearest to your current location.</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* ACTION SECTION */}
-            <section className="py-12 sm:py-20 px-4 sm:px-6">
-                <div className="max-w-7xl mx-auto bg-brand-ink rounded-[2rem] sm:rounded-[3rem] p-6 sm:p-12 relative overflow-hidden">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-16 items-center relative z-10">
-                        <div className="space-y-6">
-                            <h2 className="text-3xl font-bold text-white leading-tight">Join the community protecting <br /><span className="text-brand-blue">South African commuters.</span></h2>
-                            <p className="text-sm text-slate-400 max-w-md leading-relaxed">Create an account to personalize your alerts and contribute to the real-time road safety network.</p>
-
-                            <div className="flex flex-wrap gap-4 pt-4">
-                                <button onClick={() => navigate("/login/signin")} className="px-6 py-2.5 bg-white text-brand-ink text-xs font-bold rounded-full hover:bg-slate-200 transition-colors flex items-center gap-2">
-                                    <Zap size={14} /> Create Account
-                                </button>
-                                <button onClick={() => navigate("/login")} className="px-6 py-2.5 bg-transparent border border-white/20 text-white text-xs font-bold rounded-full hover:bg-white/5 transition-colors">Sign In</button>
-                            </div>
-                        </div>
-
+            {/* FEATURES SECTION */}
+            <section className="py-20 px-6 max-w-7xl mx-auto w-full">
+                <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
+                    {FEATURES.map((feature) => (
                         <div
-                            className="relative group cursor-pointer"
-                            onClick={() => navigate("/map")}
+                            key={feature.title}
+                            className="group flex items-center justify-center gap-0 hover:justify-start hover:gap-4 w-20 h-20 sm:w-24 sm:h-24 hover:w-72 sm:hover:w-80 hover:px-6 bg-white rounded-2xl border border-brand-border shadow-sm cursor-pointer overflow-hidden transition-all duration-500 ease-in-out hover:border-brand-blue/40"
                         >
-                            <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl aspect-video">
-                                <img
-                                    src={mapImage}
-                                    alt="Map Preview"
-                                    className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
-                                />
-                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <span className="bg-white text-brand-ink px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest">Enter Map</span>
-                                </div>
+                            <feature.icon className="text-brand-blue shrink-0" size={24} />
+                            <div className="max-w-0 max-h-0 opacity-0 group-hover:max-w-xs group-hover:max-h-40 group-hover:opacity-100 overflow-hidden transition-all duration-500 ease-in-out">
+                                <h4 className="text-lg font-bold whitespace-nowrap">{feature.title}</h4>
+                                <p className="text-xs leading-relaxed text-brand-muted mt-1 whitespace-normal">{feature.description}</p>
                             </div>
                         </div>
-                    </div>
+                    ))}
                 </div>
             </section>
         </div>

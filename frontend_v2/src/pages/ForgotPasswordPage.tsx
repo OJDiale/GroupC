@@ -46,15 +46,19 @@ export default function ForgotPassword() {
                 Please enter your username and email to reset password
             </p>
 
-            <Form method="POST" replace className="w-full space-y-4">
-                <AuthInput label="Username" name="username" placeholder="Enter Username" />
-                <AuthInput label="Email" name="email" type="email" placeholder="Enter Email" />
-                <AuthInput label="Password" name="password" type="password" placeholder="Enter Password" />
-                <AuthInput label="Confirm Password" name="confirm_password" type="password" placeholder="Enter Confirm Password" />
+            <Form method="POST" replace className="w-full">
+                <div className="mx-auto w-[70%] space-y-4">
+                    <AuthInput label="Username" name="username" placeholder="Enter Username" />
+                    <AuthInput label="Email" name="email" type="email" placeholder="Enter Email" />
+                    <AuthInput label="Password" name="password" type="password" placeholder="Enter Password" />
+                    <AuthInput label="Confirm Password" name="confirm_password" type="password" placeholder="Enter Confirm Password" />
+                </div>
 
-                <AuthButton disabled={navigation.state === "submitting"}>
-                    {navigation.state === "submitting" ? "Resetting…" : "Reset Password"}
-                </AuthButton>
+                <div className="mx-auto w-[40%] mt-4">
+                    <AuthButton disabled={navigation.state === "submitting"}>
+                        {navigation.state === "submitting" ? "Resetting…" : "Reset Password"}
+                    </AuthButton>
+                </div>
             </Form>
         </div>
     )

@@ -43,28 +43,32 @@ export default function Sigin() {
             <h1 className="w-full text-3xl font-bold text-black text-center mb-2">Create Your Account</h1>
             <p className="w-full text-gray-400 text-center mb-6">Register to access Mapper</p>
 
-            <Form method="POST" replace className="w-full space-y-4">
-                <AuthInput label="Username" name="username" placeholder="Enter Username" />
+            <Form method="POST" replace className="w-full">
+                <div className="mx-auto w-[70%] space-y-4">
+                    <AuthInput label="Username" name="username" placeholder="Enter Username" />
 
-                <div className="flex gap-[16%]">
-                    <AuthInput label="First Name" name="first_name" placeholder="Enter First Name" className="flex-1" />
-                    <AuthInput label="Last Name" name="last_name" placeholder="Enter Last Name" className="flex-1" />
+                    <div className="flex gap-[16%]">
+                        <AuthInput label="First Name" name="first_name" placeholder="Enter First Name" className="flex-1" />
+                        <AuthInput label="Last Name" name="last_name" placeholder="Enter Last Name" className="flex-1" />
+                    </div>
+
+                    <AuthInput label="Email" name="email" type="email" placeholder="Enter Email" />
+
+                    <AuthInput label="Password" name="password" type="password" placeholder="Enter Password" />
+
+                    <p className="text-gray-400 text-sm text-right">
+                        Already have an account?{" "}
+                        <Link to="/login" className="text-auth-link hover:text-auth-link-hover transition-colors font-semibold">
+                            Sign in
+                        </Link>
+                    </p>
                 </div>
 
-                <AuthInput label="Email" name="email" type="email" placeholder="Enter Email" />
-
-                <AuthInput label="Password" name="password" type="password" placeholder="Enter Password" />
-
-                <p className="text-gray-400 text-sm text-right">
-                    Already have an account?{" "}
-                    <Link to="/login" className="text-auth-link hover:text-auth-link-hover transition-colors font-semibold">
-                        Sign in
-                    </Link>
-                </p>
-
-                <AuthButton disabled={navigation.state === "submitting"}>
-                    {navigation.state === "submitting" ? "Creating Account…" : "Create Account"}
-                </AuthButton>
+                <div className="mx-auto w-[40%] mt-4">
+                    <AuthButton disabled={navigation.state === "submitting"}>
+                        {navigation.state === "submitting" ? "Creating Account…" : "Create Account"}
+                    </AuthButton>
+                </div>
             </Form>
         </div>
     )
