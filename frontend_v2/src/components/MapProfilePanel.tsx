@@ -3,8 +3,18 @@ import { ArrowLeft, UserCircle2, Mail, Lock, Download, Navigation, Loader2, MapP
 import { userData } from "../database/auth.js";
 import { useAccountPanel, type DestinationLog, formatRelativeTime } from "./useAccountPanel";
 
+export type MapStyleKey = "default" | "openstreetmap" | "openstreetmap3d";
+
+const MAP_STYLE_OPTIONS: { value: MapStyleKey; label: string }[] = [
+    { value: "default", label: "Standard" },
+    { value: "openstreetmap", label: "Detailed" },
+    { value: "openstreetmap3d", label: "3D Terrain" },
+];
+
 interface MapProfilePanelProps {
     onClose: () => void;
+    mapStyle: MapStyleKey;
+    onMapStyleChange: (style: MapStyleKey) => void;
 }
 
 /**
@@ -13,7 +23,7 @@ interface MapProfilePanelProps {
  * the shared brand/auth/admin light theme instead of AccountPanel's dark
  * glass look, since it sits alongside the map rather than replacing it.
  */
-export default function MapProfilePanel({ onClose }: MapProfilePanelProps) {
+export default function MapProfilePanel({ onClose, mapStyle, onMapStyleChange }: MapProfilePanelProps) {
     const [initialData, setInitialData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
@@ -49,14 +59,22 @@ export default function MapProfilePanel({ onClose }: MapProfilePanelProps) {
                         <Loader2 size={24} className="animate-spin text-brand-blue" />
                     </div>
                 ) : (
-                    <MapProfilePanelContent initialData={initialData} />
+                    <MapProfilePanelContent initialData={initialData} mapStyle={mapStyle} onMapStyleChange={onMapStyleChange} />
                 )}
             </div>
         </div>
     );
 }
 
-function MapProfilePanelContent({ initialData }: { initialData: any }) {
+function MapProfilePanelContent({
+    initialData,
+    mapStyle,
+    onMapStyleChange,
+}: {
+    initialData: any;
+    mapStyle: MapStyleKey;
+    onMapStyleChange: (style: MapStyleKey) => void;
+}) {
     const {
         data,
         isEmailModalOpen, setIsEmailModalOpen,
@@ -157,6 +175,26 @@ function MapProfilePanelContent({ initialData }: { initialData: any }) {
                             >
                                 Change password
                             </button>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3 pt-2">
+                        <h3 className="text-sm font-semibold text-brand-ink tracking-tight border-b border-brand-border pb-2">Map Style</h3>
+                        <div className="flex gap-2">
+                            {MAP_STYLE_OPTIONS.map((opt) => (
+                                <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => onMapStyleChange(opt.value)}
+                                    className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+                                        mapStyle === opt.value
+                                            ? "bg-brand-ink text-white border-brand-ink"
+                                            : "bg-white text-brand-muted border-brand-border hover:border-brand-blue/40"
+                                    }`}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
                         </div>
                     </div>
 

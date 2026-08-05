@@ -1,20 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { NavLink, Outlet, useSearchParams } from "react-router";
+import { Outlet, useSearchParams } from "react-router";
 import {
-  Mountain, Map as MapIcon,
-  History, Radio,
-  Navigation2,
-  AlertTriangle,
   TriangleAlert,
   Sparkles,
   BrainCircuit,
-  LocateFixed,
   MapPin,
   Check,
-  X as XIcon
+  X as XIcon,
+  Search,
+  Navigation,
+  UserCircle2,
+  Play,
+  Square,
 } from "lucide-react";
 import { Map, MapControls, MapMarker, MarkerContent, MarkerPopup, type MapRef } from "@/components/ui/map";
-import DialogDemo from "../components/Popup";
 import { Button } from "@/components/ui/button";
 import spaceImage from "../assets/space_image.jpg"
 import { type RouteData } from "../lib/types"
@@ -36,10 +35,10 @@ import {
 import Layer from "@/components/AvoidPlaceLayer";
 import { toast } from "react-hot-toast";
 import { SubscriptionDrawer } from "@/components/SubscriptionDrawer";
-import Logo from "@/components/Logo";
-import NotificationCenter from "@/components/NotificationCenter";
 import { usePageTitle } from "@/lib/usePageTitle";
-import MapProfilePanel from "@/components/MapProfilePanel";
+import MapProfilePanel, { type MapStyleKey } from "@/components/MapProfilePanel";
+import MapSidebar from "@/components/MapSidebar";
+import { userData } from "../database/auth.js";
 
 type Role = "ADMIN" | "PREMIUM" | "USER"
 
@@ -51,19 +50,19 @@ export default function MapPage(): React.JSX.Element {
     openstreetmap3d: "https://tiles.openfreemap.org/styles/liberty",
   };
 
-  type StyleKey = keyof typeof styles;
   // Plain [lon, lat] tuple — never undefined, so indexing coords[0]/coords[1]
   // typechecks (LngLatLike is a union that can't be indexed safely) and the
   // map's center prop accepts the tuple directly.
   const [coords, setCoords] = useState<[number, number]>([28.1914, -25.7566]);
   const [locationSearched, setLocationSearched] = useState({ name: "", lon: 0, lat: 0 });
   const [dataSuggested, setDataSuggested] = useState<any[]>([]);
-  const [style, setStyle] = useState<StyleKey>("openstreetmap");
+  const [style, setStyle] = useState<MapStyleKey>("openstreetmap");
   const mapRef = useRef<MapRef>(null);
   const hasCenteredOnUser = useRef(false);
   const selectedStyle = styles[style];
   const [report, setReport] = useState<boolean>(false)
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false)
+  const [profile, setProfile] = useState<{ username?: string; email?: string } | null>(null);
   const [draggableMarker, setDraggableMarker] = useState({
     lng: (coords[0] as number),
     lat: (coords[1] as number),
@@ -90,7 +89,12 @@ export default function MapPage(): React.JSX.Element {
     });
   }, [coords]);
 
+  useEffect(() => {
+    userData().then(setProfile).catch(() => setProfile({}));
+  }, []);
+
   const [, setIsLoading] = useState(true);
+  const [directionsLoading, setDirectionsLoading] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams()
   const [routes, setRoutes] = useState<RouteData[]>([]);
   const [disPlacesToAvoid, setDisPlacesToAvoid] = useState<boolean>(false)
@@ -110,17 +114,15 @@ export default function MapPage(): React.JSX.Element {
   const [openSubscripDraw, setOpenSubscripDraw] = useState<boolean>(false)
   const [, setUserRole] = useState<Role>("USER");
   const [hazardType, setHazardType] = useState<string>("accident");
-  const isEmpty: boolean = searchParams.get("lon") === null && searchParams.get("lat") === null
+  const hasDestination = searchParams.get("lon") !== null && searchParams.get("lat") !== null;
 
   // ── SafeMaster rerouting state ─────────────────────────────────────────────
   const [safeRouteResult, setSafeRouteResult] = useState<SafeRouteResult | null>(null);
   const [selectedAltIndex, setSelectedAltIndex] = useState<number | null>(null);
-  // Alert sensitivity: minimum riskScore before a route-check toast fires.
-  // 0 = always notify (matches the original always-on behavior); higher
-  // values quiet down notifications from the background re-route poller
-  // so a driver on a route with only minor, low-scoring hazards nearby
-  // isn't interrupted every 90s.
-  const [alertThreshold, setAlertThreshold] = useState(0);
+  // Separate from safeRouteResult itself so the Risk Score popup can be
+  // dismissed (by starting the trip) while the calculated route it
+  // produced keeps rendering on the map.
+  const [showRiskPopup, setShowRiskPopup] = useState<boolean>(false);
 
   // 2. LOGIC: Handle Geolocation (Run once on mount)
   useEffect(() => {
@@ -179,6 +181,7 @@ export default function MapPage(): React.JSX.Element {
     try {
       result = await generateSafeRoute(startCoord, endCoord, hazards);
       setSafeRouteResult(result);
+      setShowRiskPopup(true);
     } catch (err) {
       console.error("generateSafeRoute failed:", err);
     }
@@ -206,54 +209,47 @@ export default function MapPage(): React.JSX.Element {
     setAvoidanceGeoJSON({ type: "FeatureCollection", features: newFeatures });
     setDisPlacesToAvoid(newFeatures.length > 0);
 
-    // 5. Toast notification — SafeMaster style, suppressed below the
-    // driver's chosen alert-sensitivity threshold. Only the "route is
-    // clear" acknowledgment is shown here; the hazard-detected case is
-    // surfaced via the Route Risk Panel instead (which has working
-    // alternative-route selection), not a toast — that toast used to carry
-    // its own "Safe Path" button that called fetchSafeRoadRoute and broke
-    // the panel's alternative selection, since the two picked different
-    // route geometries to render.
-    if (result && result.riskScore >= alertThreshold) {
-      if (result.riskLevel === "SAFE" && result.incidentsOnRoute === 0) {
-        toast.custom(
-          (t) => (
-            <div
-              className={`${
-                t.visible ? "animate-enter" : "animate-leave"
-              } max-w-xs w-full bg-slate-900/95 border border-blue-500/40 shadow-xl
-                rounded-lg pointer-events-auto flex backdrop-blur-md overflow-hidden group`}
-            >
-              <div className="w-1 bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
-              <div className="flex-1 p-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0">
-                    <div className="h-8 w-8 rounded-md bg-blue-500/20 flex items-center justify-center border border-blue-400/20">
-                      <Sparkles className="h-4 w-4 text-blue-400" />
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-black text-blue-400 uppercase tracking-tighter">
-                      AI Scan Complete
-                    </p>
-                    <p className="text-xs text-slate-200 font-medium truncate">
-                      Route is clear. Proceed safely.
-                    </p>
+    // 5. Toast acknowledgment for the "route is clear" case only — the
+    // hazard-detected case is surfaced via the Route Risk Panel instead
+    // (which has working alternative-route selection), not a toast.
+    if (result && result.riskLevel === "SAFE" && result.incidentsOnRoute === 0) {
+      toast.custom(
+        (t) => (
+          <div
+            className={`${
+              t.visible ? "animate-enter" : "animate-leave"
+            } max-w-xs w-full bg-white border border-brand-border shadow-xl
+              rounded-lg pointer-events-auto flex overflow-hidden group`}
+          >
+            <div className="w-1 bg-brand-blue" />
+            <div className="flex-1 p-3">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0">
+                  <div className="h-8 w-8 rounded-md bg-brand-blue-soft flex items-center justify-center">
+                    <Sparkles className="h-4 w-4 text-brand-blue" />
                   </div>
                 </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-black text-brand-blue uppercase tracking-tighter">
+                    AI Scan Complete
+                  </p>
+                  <p className="text-xs text-brand-ink font-medium truncate">
+                    Route is clear. Proceed safely.
+                  </p>
+                </div>
               </div>
-              <button
-                onClick={() => toast.dismiss(t.id)}
-                className="px-3 border-l border-slate-800 text-[10px] font-bold uppercase
-                           text-slate-500 hover:text-white hover:bg-white/5 transition-colors"
-              >
-                Hide
-              </button>
             </div>
-          ),
-          { duration: 3000, position: "top-center" }
-        );
-      }
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="px-3 border-l border-brand-border text-[10px] font-bold uppercase
+                         text-brand-muted hover:text-brand-ink hover:bg-brand-bg transition-colors"
+            >
+              Hide
+            </button>
+          </div>
+        ),
+        { duration: 3000, position: "top-center" }
+      );
     }
 
     setIsLoading(false);
@@ -264,13 +260,76 @@ export default function MapPage(): React.JSX.Element {
     runCheck()
   }
 
+  // The AI Safe Path button doubles as the trip's stop control once a trip
+  // is active — pressing it then ends the trip instead of recalculating.
+  function handleAiSafePathClick() {
+    if (activeTripId) {
+      endTrip();
+      return;
+    }
+    if (!hasDestination) {
+      toast.error("Please confirm a start and destination location first.");
+      return;
+    }
+    subscribe();
+  }
+
+  // The Risk Score popup's close (X) button — abandons route planning
+  // entirely rather than just hiding the popup, back to "just your current
+  // location" with no destination, no calculated route, no hazard overlay.
+  function handleCancelRoutePlanning() {
+    setSafeRouteResult(null);
+    setSelectedAltIndex(null);
+    setShowRiskPopup(false);
+    setRoutes([]);
+    setPlacesToAvoid([]);
+    setDisPlacesToAvoid(false);
+    setAvoidanceGeoJSON({ type: "FeatureCollection", features: [] });
+    setSearchParams({});
+    setLocationSearched({ name: "", lon: 0, lat: 0 });
+  }
+
+  // Starting the trip is what actually logs it — selecting a destination or
+  // dropping a pin no longer starts one on its own. Keeps the calculated
+  // route (safeRouteResult/selectedAltIndex) rendering; only the popup card
+  // itself goes away.
+  async function handleStartTrip() {
+    try {
+      const stPoint = await geocodeReverse(coords[1], coords[0]);
+      const sl = stPoint?.formatted || `${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}`;
+      const destinationName = locationSearched.name || "Destination";
+      const logResult = await logUserDestination({ startLocation: sl, endLocation: destinationName }, localStorage.getItem("token") || "");
+      if (logResult.logId) {
+        setActiveTripId(logResult.logId);
+        toast.success("Trip started. Drive safely.");
+      } else {
+        toast.error(logResult.message || "Failed to start trip.");
+      }
+    } catch (err) {
+      console.error("Failed to start trip:", err);
+      toast.error("Failed to start trip.");
+    }
+    setShowRiskPopup(false);
+  }
+
+  async function handleDirectionClick() {
+    if (!hasDestination) {
+      toast.error("Choose a destination first — search above or drop a pin.");
+      return;
+    }
+    setDirectionsLoading(true);
+    await fetchRoutes(coords, distinationLat, distinationLon, setRoutes, () => {});
+    setDirectionsLoading(false);
+  }
+
   // ── Deliberately no background auto-rerun loop here ─────────────────────
-  // The SafeMaster check ("AI SAFE PATH") must only ever run when the user
+  // The SafeMaster check ("AI Safe Path") must only ever run when the user
   // presses the button. Earlier versions re-ran runCheck() automatically
   // on an interval while a trip was active, which fired the full AI scan
   // (hazard fetch + scoring + route generation + toast) every few seconds
   // without the user asking for it. That poller has been removed: analysis
-  // is now strictly on-demand.
+  // is now strictly on-demand. Basic OSRM route lines are the same way now
+  // (see handleDirectionClick) — no more auto-fetch on destination change.
 
   // 3. LOGIC: Handle Search API (Debounced)
   useEffect(() => {
@@ -333,23 +392,17 @@ export default function MapPage(): React.JSX.Element {
     }
   }
 
-  async function confirmDestinationPin() {
+  function confirmDestinationPin() {
     const name = destinationPinAddress || `${destinationPin.lat.toFixed(5)}, ${destinationPin.lng.toFixed(5)}`;
     setLocationSearched({ name, lon: destinationPin.lng, lat: destinationPin.lat });
     setSearchParams({ name, lon: String(destinationPin.lng), lat: String(destinationPin.lat) });
     setPickingDestination(false);
-
-    // Log the trip the same way a search-picked destination is logged.
-    try {
-      const stPoint = await geocodeReverse(coords[1], coords[0]);
-      const sl = stPoint?.formatted || `${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}`;
-      const logResult = await logUserDestination({ startLocation: sl, endLocation: name }, localStorage.getItem("token") || "");
-      if (logResult.logId) setActiveTripId(logResult.logId);
-    } catch (err) {
-      console.error("Failed to log dropped-pin destination:", err);
-    }
   }
 
+  // Ends the active trip and resets planning state back to just the user's
+  // current location — same "initial state" the popup's cancel (X) button
+  // produces, since this button now doubles as that reset once a trip is
+  // running.
   async function endTrip() {
     if (!activeTripId) return;
     setEndingTrip(true);
@@ -357,132 +410,161 @@ export default function MapPage(): React.JSX.Element {
       const result = await endUserTrip(activeTripId, localStorage.getItem("token") || "");
       if (result.success) {
         toast.success("Trip ended. Glad you made it safely.");
-        setActiveTripId(null);
-        setSafeRouteResult(null);
-        setSelectedAltIndex(null);
-        setRoutes([]);
-        setSearchParams({});
-        setLocationSearched({ name: "", lon: 0, lat: 0 });
       } else {
         toast.error(result.message || "Failed to end trip.");
       }
     } finally {
+      setActiveTripId(null);
+      setSafeRouteResult(null);
+      setSelectedAltIndex(null);
+      setShowRiskPopup(false);
+      setRoutes([]);
+      setPlacesToAvoid([]);
+      setDisPlacesToAvoid(false);
+      setAvoidanceGeoJSON({ type: "FeatureCollection", features: [] });
+      setSearchParams({});
+      setLocationSearched({ name: "", lon: 0, lat: 0 });
       setEndingTrip(false);
     }
   }
 
-  return (
-    <main className="relative h-screen w-full overflow-hidden font-sans antialiased text-slate-100">
+  function selectSearchSuggestion(data: any) {
+    const destinationName = data?.properties?.formatted || "Pinned location";
+    const lon = data?.geometry?.coordinates[0];
+    const lat = data?.geometry?.coordinates[1];
+    setLocationSearched({ name: destinationName, lon, lat });
+    setSearchParams({ name: destinationName, lon: String(lon), lat: String(lat) });
+    setDataSuggested([]);
+  }
 
-      <header className="absolute top-3 left-3 right-3 sm:top-6 sm:left-6 sm:right-6 z-[1000] flex items-center justify-between gap-2 pointer-events-none">
+  // Fixed to the viewport (rather than a height unit on a normal in-flow
+  // element) so nothing on the page — the toast container, an old #root
+  // sizing quirk, whatever — can ever inflate document scroll height and
+  // create bottom whitespace/scroll. Same pattern AdminSidebarLayout uses
+  // for the same reason.
+  return (
+    <main className="fixed inset-0 overflow-hidden font-sans antialiased">
+
+      <MapSidebar
+        onMe={() => handleFlyTo(coords)}
+        onDropPin={startPickingDestination}
+        pickingDestination={pickingDestination}
+        reportActive={report}
+        onReportDanger={() => {
+          setReport((prev) => !prev);
+          handleFlyTo(coords);
+        }}
+      />
+
+      {/* ── Search / Direction / AI Safe Path / Account bar ─────────────────── */}
+      <div className="absolute top-3 sm:top-6 left-24 sm:left-28 right-3 sm:right-6 z-[1000] flex items-center gap-2 sm:gap-3">
+        <div className="relative flex-1 min-w-0">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-muted pointer-events-none" />
+          <input
+            value={locationSearched.name}
+            onChange={(e) => setLocationSearched({ name: e.target.value, lon: 0, lat: 0 })}
+            placeholder="Search Mapper"
+            className="w-full h-11 pl-9 pr-9 rounded-2xl border border-brand-border bg-white text-sm text-brand-ink placeholder:text-brand-muted shadow-sm outline-none focus:ring-2 focus:ring-brand-blue/30"
+          />
+          {locationSearched.name && (
+            <button
+              type="button"
+              onClick={() => { setLocationSearched({ name: "", lon: 0, lat: 0 }); setDataSuggested([]); }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-brand-muted hover:text-brand-ink"
+              title="Clear search"
+            >
+              <XIcon size={14} />
+            </button>
+          )}
+          {dataSuggested.length > 0 && locationSearched.lat === 0 && (
+            <ul className="absolute z-20 mt-1 w-full bg-white border border-brand-border rounded-xl shadow-lg max-h-64 overflow-y-auto">
+              {dataSuggested.map((data, i) => (
+                <li key={i}>
+                  <button
+                    type="button"
+                    onClick={() => selectSearchSuggestion(data)}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-brand-bg flex items-start gap-2"
+                  >
+                    <MapPin size={14} className="mt-0.5 shrink-0 text-brand-muted" />
+                    <span className="min-w-0 truncate">{data?.properties?.formatted}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={handleDirectionClick}
+          disabled={directionsLoading}
+          title="Get directions"
+          className="h-11 px-4 rounded-2xl bg-white border border-brand-border shadow-sm text-brand-ink font-semibold text-sm flex items-center gap-2 hover:border-brand-blue/40 disabled:opacity-60 shrink-0 transition-colors"
+        >
+          <Navigation size={16} className={directionsLoading ? "animate-pulse text-brand-blue" : "text-brand-blue"} />
+          <span className="hidden sm:inline">Direction</span>
+        </button>
+
+        <Button
+          onClick={handleAiSafePathClick}
+          disabled={isCalculating || endingTrip}
+          title={activeTripId ? "End Trip" : "AI Safe Path"}
+          className={`h-11 px-4 rounded-2xl font-semibold text-sm flex items-center gap-2 shrink-0 disabled:opacity-60 transition-colors ${
+            activeTripId ? "bg-red-600 hover:bg-red-700 text-white" : "bg-brand-ink hover:bg-brand-blue-dark text-white"
+          }`}
+        >
+          {isCalculating ? (
+            <BrainCircuit size={16} className="animate-pulse" />
+          ) : activeTripId ? (
+            <Square size={16} />
+          ) : (
+            <Sparkles size={16} />
+          )}
+          <span className="hidden sm:inline">
+            {isCalculating ? "Scanning…" : activeTripId ? "End Trip" : "AI Safe Path"}
+          </span>
+        </Button>
+
         <button
           type="button"
           onClick={() => setIsProfileOpen(true)}
-          title="Open profile"
-          className="flex items-center justify-center size-10 sm:size-11 shrink-0 rounded-2xl bg-slate-900/90 backdrop-blur-2xl shadow-2xl border border-blue-500/30 pointer-events-auto text-slate-300 hover:text-blue-300 transition-colors"
+          className="flex items-center gap-3 bg-white border border-brand-border rounded-2xl shadow-sm px-3 py-2 shrink-0"
         >
-          <Logo size={20} showWordmark={false} ringClassName="text-slate-300" />
+          <div className="w-9 h-9 rounded-full bg-brand-blue-soft text-brand-blue flex items-center justify-center shrink-0">
+            <UserCircle2 size={22} />
+          </div>
+          <div className="text-left leading-tight hidden sm:block">
+            <p className="font-bold text-black text-sm truncate max-w-[9rem]">{profile?.username || "…"}</p>
+            <p className="text-gray-400 text-xs truncate max-w-[9rem]">{profile?.email || ""}</p>
+          </div>
         </button>
-
-        <div className="flex-1 flex justify-center min-w-0">
-        <div className="flex flex-wrap items-center gap-1 bg-slate-900/90 backdrop-blur-2xl p-1.5 rounded-2xl shadow-2xl border border-blue-500/30 pointer-events-auto max-w-full">
-
-          <div className="flex items-center bg-blue-950/40 rounded-xl px-2 border border-white/10 mr-1">
-            <DialogDemo
-              locationSearched={locationSearched}
-              setLocationSearched={setLocationSearched}
-              locationsSuggests={dataSuggested?.map((data, i) => (
-                <div
-                  key={i}
-                  className="p-3 flex items-center gap-2 hover:bg-blue-900/40 cursor-pointer transition-colors border-b border-slate-800 last:border-0"
-                  onClick={async () => {
-                    const destinationName = data?.properties?.formatted || "Pinned location";
-                    setLocationSearched({
-                      name: destinationName,
-                      lon: data?.geometry?.coordinates[0],
-                      lat: data?.geometry?.coordinates[1]
-                    })
-                    const stPoint = await geocodeReverse(coords[1], coords[0])
-                    const sl = stPoint?.formatted || `${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}`
-                    const logResult = await logUserDestination({ startLocation: sl, endLocation: destinationName }, localStorage.getItem("token") || "")
-                    if (logResult.logId) setActiveTripId(logResult.logId)
-                  }}
-                >
-                  <Navigation2 size={14} className="text-blue-400 rotate-45" />
-                  <span className="text-xs text-slate-300">{data?.properties?.formatted}</span>
-                </div>
-              ))}
-            />
-          </div>
-
-          <button
-            onClick={startPickingDestination}
-            title="Drop a pin to choose a destination"
-            className={`flex items-center gap-1.5 px-2.5 sm:px-3 h-10 sm:h-11 rounded-xl mr-1 border text-[10px] font-bold uppercase tracking-wide transition-all
-              ${pickingDestination
-                ? "bg-blue-600 border-blue-400 text-white"
-                : "bg-blue-950/40 border-white/10 text-blue-300 hover:bg-blue-900/40"}`}
-          >
-            <MapPin size={16} /> <span className="hidden lg:inline">Drop Pin</span>
-          </button>
-
-          <div
-            className="hidden xl:flex items-center gap-2 px-3 h-10 sm:h-11 rounded-xl mr-1 border border-white/10 bg-blue-950/40"
-            title="Minimum risk score before a route-check alert is shown"
-          >
-            <span className="text-[10px] font-bold uppercase tracking-wide text-blue-300 whitespace-nowrap">
-              Alert Sensitivity
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={70}
-              step={5}
-              value={alertThreshold}
-              onChange={(e) => setAlertThreshold(Number(e.target.value))}
-              className="w-20 accent-blue-500"
-              aria-label="Alert sensitivity threshold"
-            />
-            <span className="text-[10px] font-mono text-slate-400 w-6">{alertThreshold}</span>
-          </div>
-
-          <nav className="flex items-center gap-1">
-            <NavLink to="/map" end title="Current route" className={({ isActive }) => `flex items-center gap-1.5 px-2 sm:px-2.5 py-2 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wide ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-blue-300'}`}>
-              <MapIcon size={16} /> <span className="hidden lg:inline">Route</span>
-            </NavLink>
-            <NavLink to="historical_events" title="Past hazard reports" className={({ isActive }) => `flex items-center gap-1.5 px-2 sm:px-2.5 py-2 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wide ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-blue-300'}`}>
-              <History size={16} /> <span className="hidden lg:inline">History</span>
-            </NavLink>
-            <NavLink to="current_events" title="Live hazard reports" className={({ isActive }) => `flex items-center gap-1.5 px-2 sm:px-2.5 py-2 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wide ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-blue-300'}`}>
-              <Radio size={16} /> <span className="hidden lg:inline">Live</span>
-            </NavLink>
-            <button
-              onClick={() => handleFlyTo(coords as [number, number])}
-              className="flex items-center gap-1.5 px-2 sm:px-2.5 py-2 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wide text-slate-400 hover:text-blue-300 hover:bg-blue-600/20 active:scale-90"
-              title="Center on my location"
-            >
-              <LocateFixed size={16} /> <span className="hidden lg:inline">Me</span>
-            </button>
-          </nav>
-        </div>
-        </div>
-
-        <div className="flex items-center justify-center size-10 sm:size-11 shrink-0 rounded-2xl bg-slate-900/90 backdrop-blur-2xl shadow-2xl border border-blue-500/30 pointer-events-auto">
-          <NotificationCenter dark />
-        </div>
-      </header>
+      </div>
 
       {/* ── SafeMaster: Route Risk Panel ─────────────────────────────────────── */}
-      {safeRouteResult && (
-        <div className="absolute top-20 left-3 right-3 sm:top-24 sm:left-6 sm:right-auto z-[999] sm:w-72 sm:max-w-xs bg-slate-900/95 border border-blue-500/30 rounded-2xl shadow-2xl backdrop-blur-xl pointer-events-auto overflow-hidden">
-          {/* Risk level header */}
+      {safeRouteResult && showRiskPopup && (
+        <div className="absolute top-20 left-24 right-3 sm:top-24 sm:left-28 sm:right-auto z-[999] sm:w-72 sm:max-w-xs bg-white border border-brand-border rounded-2xl shadow-2xl overflow-hidden">
+          {/* Panel title — cross cancels route planning entirely, back to
+              just the user's current location */}
+          <div className="px-4 py-2 flex items-center justify-between bg-red-50">
+            <span className="text-[10px] font-black uppercase tracking-widest text-red-700">Risk Score</span>
+            <button
+              type="button"
+              onClick={handleCancelRoutePlanning}
+              title="Cancel route planning"
+              className="text-red-700 hover:text-red-900 transition-colors"
+            >
+              <XIcon size={14} />
+            </button>
+          </div>
+
+          {/* Risk level line */}
           <div
             className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest flex items-center gap-2
               ${safeRouteResult.riskLevel === "SAFE"
-                ? "bg-green-600/20 text-green-400"
+                ? "bg-green-50 text-green-700"
                 : safeRouteResult.riskLevel === "WARNING"
-                ? "bg-yellow-600/20 text-yellow-400"
-                : "bg-red-600/20 text-red-400"}`}
+                ? "bg-amber-50 text-amber-700"
+                : "bg-red-50 text-red-700"}`}
           >
             <span className="inline-block w-2 h-2 rounded-full bg-current animate-pulse" />
             {safeRouteResult.riskLevel} · Score {safeRouteResult.riskScore.toFixed(0)}/100
@@ -490,18 +572,18 @@ export default function MapPage(): React.JSX.Element {
 
           {/* Best route */}
           <div
-            className={`px-4 py-2.5 border-b border-slate-800 cursor-pointer transition-colors
-              ${selectedAltIndex === null ? "bg-blue-600/10" : "hover:bg-slate-800/40"}`}
+            className={`px-4 py-2.5 border-b border-brand-border cursor-pointer transition-colors
+              ${selectedAltIndex === null ? "bg-brand-blue-soft/40" : "hover:bg-brand-bg"}`}
             onClick={() => setSelectedAltIndex(null)}
           >
-            <p className="text-[11px] font-bold text-blue-300 truncate">
+            <p className="text-[11px] font-bold text-brand-ink truncate">
               {safeRouteResult.best.label}
             </p>
-            <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-2">
+            <p className="text-[10px] text-brand-muted mt-0.5 line-clamp-2">
               {safeRouteResult.best.explanation}
             </p>
             {safeRouteResult.best.distanceM && (
-              <p className="text-[10px] text-slate-500 mt-0.5">
+              <p className="text-[10px] text-brand-muted mt-0.5">
                 {(safeRouteResult.best.distanceM / 1000).toFixed(1)} km
                 {safeRouteResult.best.durationS
                   ? ` · ~${Math.round(safeRouteResult.best.durationS / 60)} min`
@@ -513,7 +595,7 @@ export default function MapPage(): React.JSX.Element {
           {/* Alternatives */}
           {safeRouteResult.alternatives.length > 0 && (
             <div className="px-4 pt-2 pb-1">
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1.5">
+              <p className="text-[9px] font-black uppercase tracking-widest text-brand-muted mb-1.5">
                 Alternatives
               </p>
               <div className="flex flex-col gap-1 max-h-44 overflow-y-auto pr-1">
@@ -522,12 +604,12 @@ export default function MapPage(): React.JSX.Element {
                     key={i}
                     className={`px-3 py-2 rounded-lg cursor-pointer transition-colors border
                       ${selectedAltIndex === i
-                        ? "bg-blue-600/15 border-blue-500/40 text-blue-300"
-                        : "bg-slate-800/40 border-slate-700/40 text-slate-400 hover:bg-slate-800"}`}
+                        ? "bg-brand-blue-soft border-brand-blue/40 text-brand-blue"
+                        : "bg-brand-bg border-brand-border text-brand-muted hover:bg-white"}`}
                     onClick={() => setSelectedAltIndex(i)}
                   >
                     <p className="text-[10px] font-bold truncate">{alt.label}</p>
-                    <p className="text-[9px] text-slate-500 mt-0.5">
+                    <p className="text-[9px] text-brand-muted mt-0.5">
                       {alt.incidentsOnRoute === 0 ? "✓ Clear" : `${alt.incidentsOnRoute} hazard(s)`}
                       {alt.distanceM ? ` · ${(alt.distanceM / 1000).toFixed(1)} km` : ""}
                     </p>
@@ -537,12 +619,6 @@ export default function MapPage(): React.JSX.Element {
             </div>
           )}
 
-          <button
-            onClick={() => { setSafeRouteResult(null); setSelectedAltIndex(null); }}
-            className="w-full py-2 text-[10px] text-slate-500 hover:text-slate-300 hover:bg-slate-800/30 transition-colors"
-          >
-            Dismiss
-          </button>
         </div>
       )}
 
@@ -586,10 +662,10 @@ export default function MapPage(): React.JSX.Element {
               <MarkerPopup className="p-0 min-w-[200px]">
                 <div className="flex flex-col gap-2.5 p-1">
                   <div>
-                    <h4 className="text-[9px] font-black uppercase tracking-widest text-red-500">
+                    <h4 className="text-[9px] font-black uppercase tracking-widest text-red-600">
                       Signal Location
                     </h4>
-                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">Select hazard type:</p>
+                    <p className="text-[10px] text-brand-muted font-medium mt-0.5">Select hazard type:</p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-1.5">
@@ -605,8 +681,8 @@ export default function MapPage(): React.JSX.Element {
                         key={hazard.id}
                         className={`px-2 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-tight text-center cursor-pointer border transition-all select-none
                           ${hazardType === hazard.id
-                            ? "bg-red-600/20 border-red-500 text-red-400"
-                            : "bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-300 hover:bg-slate-800"}`}
+                            ? "bg-red-50 border-red-400 text-red-600"
+                            : "bg-white border-brand-border text-brand-muted hover:border-red-300"}`}
                       >
                         <input
                           type="radio"
@@ -661,7 +737,7 @@ export default function MapPage(): React.JSX.Element {
               <MarkerContent>
                 <div className="relative group cursor-grab active:cursor-grabbing">
                   <div className="absolute inset-0 -m-5 rounded-full bg-blue-500/10 border border-blue-500/20 animate-ping" />
-                  <div className="relative z-10 bg-blue-600 p-2.5 rounded-xl shadow-lg border border-blue-400">
+                  <div className="relative z-10 bg-brand-blue p-2.5 rounded-xl shadow-lg border border-blue-400">
                     <MapPin size={18} className="text-white" />
                   </div>
                 </div>
@@ -669,10 +745,10 @@ export default function MapPage(): React.JSX.Element {
               <MarkerPopup className="p-0 min-w-[220px]">
                 <div className="flex flex-col gap-2.5 p-1">
                   <div>
-                    <h4 className="text-[9px] font-black uppercase tracking-widest text-blue-400">
+                    <h4 className="text-[9px] font-black uppercase tracking-widest text-brand-blue">
                       Dropped Pin
                     </h4>
-                    <p className="text-[11px] text-slate-300 font-medium mt-0.5">
+                    <p className="text-[11px] text-brand-ink font-medium mt-0.5">
                       {resolvingPinAddress
                         ? "Resolving address…"
                         : destinationPinAddress || "Drag the pin, then tap it again to confirm."}
@@ -681,7 +757,7 @@ export default function MapPage(): React.JSX.Element {
 
                   <div className="flex gap-1.5">
                     <Button
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 h-8 rounded-lg text-[10px] font-bold border-none text-white flex items-center justify-center gap-1.5"
+                      className="flex-1 bg-brand-ink hover:bg-brand-blue-dark h-8 rounded-lg text-[10px] font-bold border-none text-white flex items-center justify-center gap-1.5"
                       disabled={resolvingPinAddress}
                       onClick={confirmDestinationPin}
                     >
@@ -689,7 +765,7 @@ export default function MapPage(): React.JSX.Element {
                     </Button>
                     <Button
                       variant="ghost"
-                      className="h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+                      className="h-8 w-8 p-0 rounded-lg text-brand-muted hover:text-brand-ink hover:bg-brand-bg"
                       onClick={() => setPickingDestination(false)}
                       title="Cancel"
                     >
@@ -702,10 +778,10 @@ export default function MapPage(): React.JSX.Element {
           )}
 
           {/*
-            Pass safeRouteResult + selectedAltIndex to MapCurrent via Outlet context
-            so it can render the correct route geometry (best or chosen alternative).
+            Pass safeRouteResult + selectedAltIndex + routes to MapCurrent via
+            Outlet context so it can render the correct route geometry.
           */}
-          <Outlet context={{ placesToAvoid, coords, locationSearched, draggableMarker, runCheck, safeRouteResult, selectedAltIndex }} />
+          <Outlet context={{ placesToAvoid, coords, locationSearched, draggableMarker, runCheck, routes, safeRouteResult, selectedAltIndex }} />
 
           <div className="absolute bottom-24 right-10">
             <MapControls position="bottom-right" />
@@ -719,92 +795,28 @@ export default function MapPage(): React.JSX.Element {
         setValue={setUserRole}
       />
 
-      <footer className="absolute bottom-4 sm:bottom-8 left-0 right-0 z-[1000] px-3 sm:px-6 pointer-events-none flex flex-col items-center gap-2">
+      {/* ── Status pill (drop-pin hint / no-destination hint / start trip) ──── */}
+      <div className="absolute bottom-4 sm:bottom-8 left-24 sm:left-28 right-3 sm:right-6 z-[1000] flex justify-center pointer-events-none">
         {pickingDestination ? (
-          <div className="pointer-events-auto max-w-full text-center flex items-center gap-2 bg-slate-900/95 backdrop-blur-2xl px-4 py-1.5 rounded-full border border-blue-500/30 shadow-xl text-[9px] sm:text-[10px] font-bold uppercase tracking-wide text-blue-300">
-            <MapPin size={12} className="shrink-0" /> <span>Drag the blue pin, then tap it to confirm your destination</span>
+          <div className="pointer-events-auto max-w-full text-center flex items-center gap-2 bg-white border border-brand-border px-4 py-1.5 rounded-full shadow-lg text-xs font-semibold text-brand-ink">
+            <MapPin size={14} className="shrink-0 text-brand-blue" /> <span>Drag the blue pin, then tap it to confirm your destination</span>
           </div>
-        ) : isEmpty ? (
-          <div className="pointer-events-auto max-w-full text-center flex items-center gap-2 bg-slate-900/95 backdrop-blur-2xl px-4 py-1.5 rounded-full border border-blue-500/30 shadow-xl text-[9px] sm:text-[10px] font-bold uppercase tracking-wide text-blue-300">
-            <Navigation2 size={12} className="shrink-0" /> <span>Search above or drop a pin, then tap AI SAFE PATH</span>
-          </div>
-        ) : activeTripId && (
+        ) : safeRouteResult && showRiskPopup && !activeTripId ? (
           <button
-            onClick={endTrip}
-            disabled={endingTrip}
-            className="pointer-events-auto max-w-full text-center flex items-center gap-2 bg-green-600 hover:bg-green-500 disabled:opacity-60 px-4 py-1.5 rounded-full border border-green-400 shadow-xl text-[9px] sm:text-[10px] font-black uppercase tracking-wide text-white transition-colors"
+            onClick={handleStartTrip}
+            className="pointer-events-auto max-w-full text-center flex items-center gap-2 bg-green-600 hover:bg-green-500 px-5 py-2 rounded-full shadow-lg text-sm font-bold text-white transition-colors"
           >
-            <Check size={12} className="shrink-0" /> <span>{endingTrip ? "Ending trip…" : "Reached your destination? End Trip"}</span>
+            <Play size={16} className="shrink-0" /> <span>Start Trip</span>
           </button>
-        )}
-        <div className="max-w-xl w-full mx-auto flex items-center justify-between gap-1.5 sm:gap-4 pointer-events-auto bg-slate-900/95 backdrop-blur-2xl p-2 sm:p-2.5 rounded-[28px] border border-blue-500/30 shadow-2xl">
-
-          <Button
-            onClick={() => {
-              setReport(prev => !prev);
-              handleFlyTo([coords[0] as number, coords[1] as number]);
-            }}
-            title="Report danger"
-            className={`h-10 px-3 sm:px-5 rounded-xl flex gap-2 items-center border text-[11px] font-bold tracking-wider transition-colors shrink-0
-              ${
-                report
-                  ? "bg-red-600 border-red-400 text-white"
-                  : "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700"
-              }`}
-          >
-            <AlertTriangle size={16} />
-            <span className="hidden sm:inline">REPORT DANGER</span>
-          </Button>
-
-          <div className="flex items-center gap-1.5 bg-blue-950/40 px-2 sm:px-3 py-1.5 rounded-lg border border-white/5 min-w-0">
-            <Mountain size={14} className="text-blue-400 shrink-0" />
-            <select
-              value={style}
-              onChange={(e) => setStyle(e.target.value as StyleKey)}
-              style={{ colorScheme: "dark" }}
-              className="bg-transparent text-white text-[9px] sm:text-[10px] font-bold uppercase outline-none cursor-pointer min-w-0 max-w-[4.5rem] sm:max-w-none"
-            >
-              <option className="bg-slate-900 text-white" value="default">Standard</option>
-              <option className="bg-slate-900 text-white" value="openstreetmap">Detailed</option>
-              <option className="bg-slate-900 text-white" value="openstreetmap3d">3D Terrain</option>
-            </select>
+        ) : !hasDestination ? (
+          <div className="pointer-events-auto max-w-full text-center flex items-center gap-2 bg-white border border-brand-border px-4 py-1.5 rounded-full shadow-lg text-xs font-semibold text-brand-muted">
+            <Search size={14} className="shrink-0 text-brand-blue" /> <span>Search above or drop a pin, then tap Direction</span>
           </div>
-
-          <Button
-            onClick={() => { subscribe() }}
-            disabled={isCalculating || isEmpty}
-            title="AI Safe Path"
-            className={`
-              relative h-10 px-3 sm:px-5 overflow-hidden shrink-0
-              bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900
-              text-white border border-blue-500/40
-              rounded-xl shadow-[0_0_15px_rgba(79,70,229,0.2)]
-              transition-all duration-300 group
-              ${isCalculating ? 'opacity-70' : 'hover:border-blue-400 hover:scale-[1.02] active:scale-95'}
-            `}
-          >
-            <div className="relative z-10 flex items-center gap-2">
-              {isCalculating ? (
-                <>
-                  <BrainCircuit size={18} className="text-blue-300 animate-pulse" />
-                  <span className="hidden sm:inline text-[10px] font-medium uppercase">Processing...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles size={18} className="text-blue-400 group-hover:rotate-12 transition-transform" />
-                  <span className="hidden sm:inline text-[10px] font-black uppercase tracking-widest">AI SAFE PATH</span>
-                </>
-              )}
-            </div>
-            {isCalculating && (
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
-            )}
-          </Button>
-        </div>
-      </footer>
+        ) : null}
+      </div>
 
       {isProfileOpen && (
-        <MapProfilePanel onClose={() => setIsProfileOpen(false)} />
+        <MapProfilePanel onClose={() => setIsProfileOpen(false)} mapStyle={style} onMapStyleChange={setStyle} />
       )}
     </main>
   );

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router";
-import { LogOut, MapPin, Search, Check, RotateCcw, ShieldAlert } from "lucide-react";
+import { UserCircle2, MapPin, Search, Check, RotateCcw, ShieldAlert } from "lucide-react";
 import { Map, MapMarker, MarkerContent } from "@/components/ui/map";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import Logo from "@/components/Logo";
+import AdminProfileModal from "@/components/AdminProfileModal";
 import { API_BASE_URL } from "@/lib/apiConfig";
 import { geocodeAutocomplete } from "@/lib/utils";
 
@@ -55,6 +56,7 @@ export default function StaffReportDashboard({
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const showToast = (msg: string, type = "") => {
     setToast({ msg, type });
@@ -206,13 +208,17 @@ export default function StaffReportDashboard({
             <ShieldAlert size={16} /> <span className="hidden sm:inline">Response Report</span>
           </Link>
           <button
-            onClick={logout}
-            className="flex items-center gap-2 text-sm font-semibold text-brand-muted hover:text-brand-ink"
+            type="button"
+            onClick={() => setIsProfileOpen(true)}
+            className="flex items-center justify-center size-9 rounded-full bg-brand-blue-soft text-brand-blue hover:bg-brand-blue/20 transition-colors"
+            title="My Profile"
           >
-            <LogOut size={16} /> <span className="hidden sm:inline">Log out</span>
+            <UserCircle2 size={22} />
           </button>
         </div>
       </header>
+
+      {isProfileOpen && <AdminProfileModal onClose={() => setIsProfileOpen(false)} />}
 
       <main className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
         <div>

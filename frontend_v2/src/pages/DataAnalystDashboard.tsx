@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router";
-import { LogOut, RefreshCw, TrendingUp, Sparkles, ArrowUpDown, ClipboardList, ShieldAlert } from "lucide-react";
+import { UserCircle2, RefreshCw, TrendingUp, Sparkles, ArrowUpDown, ClipboardList, ShieldAlert } from "lucide-react";
 import { Map, MapMarker, MarkerContent, MarkerPopup } from "@/components/ui/map";
 import Logo from "@/components/Logo";
+import AdminProfileModal from "@/components/AdminProfileModal";
 import ReportExportButtons from "@/components/ReportExportButtons";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { API_BASE_URL } from "@/lib/apiConfig";
@@ -42,6 +43,7 @@ export default function DataAnalystDashboard() {
   const [sortBy, setSortBy] = useState<"count" | "lat" | "lng">("count");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -125,11 +127,18 @@ export default function DataAnalystDashboard() {
           <Link to="/ai-candidates" className="flex items-center gap-2 text-sm font-semibold text-brand-muted hover:text-brand-ink">
             <Sparkles size={16} /> <span className="hidden sm:inline">Live Risk Intelligence</span>
           </Link>
-          <button onClick={logout} className="flex items-center gap-2 text-sm font-semibold text-brand-muted hover:text-brand-ink">
-            <LogOut size={16} /> <span className="hidden sm:inline">Log out</span>
+          <button
+            type="button"
+            onClick={() => setIsProfileOpen(true)}
+            className="flex items-center justify-center size-9 rounded-full bg-brand-blue-soft text-brand-blue hover:bg-brand-blue/20 transition-colors"
+            title="My Profile"
+          >
+            <UserCircle2 size={22} />
           </button>
         </div>
       </header>
+
+      {isProfileOpen && <AdminProfileModal onClose={() => setIsProfileOpen(false)} />}
 
       <main className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-3">

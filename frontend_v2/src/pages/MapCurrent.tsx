@@ -1,10 +1,9 @@
 import { useOutletContext, useSearchParams } from "react-router"
 import { MarkerContent, MapMarker, MarkerPopup, MapRoute } from "../components/ui/map"
 import { useEffect, useState, useMemo } from "react"
-import { type Distination, type PlaceInformation, type RouteData } from "../lib/types"
+import { type Distination, type PlaceInformation } from "../lib/types"
 import {
   reverseGeocoding,
-  fetchRoutes,
   type GeoCoordinate,
   // ── SafeMaster rerouting ──────────────────────────────────────────────────
   type SafeRouteResult,
@@ -24,19 +23,23 @@ export default function MapCurrent() {
 
   const {
     coords,
+    routes,
     safeRouteResult,
     selectedAltIndex,
   }: MapCurrentContext = useOutletContext()
 
   const [pinnedInfo, setPinnedInfo] = useState<Array<PlaceInformation>>([{ city: "", street: "" }])
-  const [routes, setRoutes] = useState<RouteData[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const distinationLon = searchParams.get("lon") && Number(searchParams.get("lon"))
   const distinationLat = searchParams.get("lat") && Number(searchParams.get("lat"))
 
+  // Route lines themselves are no longer auto-fetched here — MapPage owns
+  // `routes` (via Outlet context) and only populates it when the driver
+  // clicks "Direction". This effect just keeps the marker-popup place names
+  // (start/destination address) resolved, which is informational and not a
+  // routing calculation.
   useEffect(() => {
-    fetchRoutes(coords, distinationLat, distinationLon, setRoutes, () => {})
     reverseGeocoding(coords, distinationLat, distinationLon, setPinnedInfo)
   }, [coords, distinationLat, distinationLon])
 

@@ -367,7 +367,16 @@ export async function generateSafeRoute(
 
   // ── Step 3: generate bypass detours around blocking hazards ───────────────
   if (blockingHazards.length > 0) {
-    const viaPoints = bypassViaPoints(blockingHazards, startCoord, endCoord);
+    const rawViaPoints = bypassViaPoints(blockingHazards, startCoord, endCoord);
+    // Snap every geometrically-computed via point to the road network before
+    // routing through it — a raw bearing/distance offset can land on a
+    // dead-end or undrivable side street, which OSRM then routes down and
+    // back out of as a mandatory waypoint (the "off-road detour that stops
+    // midway and backtracks" symptom). Mirrors snapToRoad's use in the older
+    // fetchSafeRoadRoute system, which already solved exactly this.
+    const viaPoints = await Promise.all(
+      rawViaPoints.map(([lon, lat]) => snapToRoad(lon, lat))
+    );
 
     // Single-via detours
     for (const via of viaPoints.slice(0, 8)) {
