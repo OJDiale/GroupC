@@ -15,7 +15,7 @@ const getAuthHeaders = () => {
 /**
  * Registers a new user with the SQLite backend
  */
-export async function addUser(email, password, username, firstName, lastName, userType = "driver") {
+export async function addUser(email, password, username, firstName, lastName, userType = "normal") {
     try {
         // Fixed the string interpolation bug: `${BASE_URL}/api/auth/register`
         const response = await fetch(`${BASE_URL}/api/auth/register`, {
@@ -46,46 +46,6 @@ export const  checkForAdmin = async (userType) => {
      return userType === "admin"
 
 };
-
-/**
- * Maps a resolved userType (from login/register) to the dashboard route
- * that role should land on.
- */
-export const dashboardPathForRole = (userType) => {
-    switch (userType) {
-        case "admin": return "/admin";
-        case "traffic_authority": return "/traffic-authority";
-        case "security_agency": return "/security-agency";
-        case "data_analyst": return "/data-analyst";
-        default: return "/map";
-    }
-};
-
-/**
- * Admin-only: creates a staff account (System Administrator, Traffic
- * Authority, Security Agency or Data Analyst). Requires the caller's own
- * admin token.
- */
-export async function registerStaffAccount(email, password, username, firstName, lastName, role) {
-    try {
-        const response = await fetch(`${BASE_URL}/api/auth/register-staff`, {
-            method: "POST",
-            headers: getAuthHeaders(),
-            body: JSON.stringify({ email, password, username, firstName, lastName, role })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.message || "Failed to create staff account.");
-        }
-
-        return data;
-    } catch (error) {
-        console.error("Staff registration error:", error.message);
-        throw error;
-    }
-}
 /**
  * Authenticates an existing user
  */
@@ -110,31 +70,6 @@ export const loginWithEmailAndPassword = async (identifier, password) => {
 };
 
 
-
-/**
- * Resets a user's password given their username + email (no OTP/email
- * verification — see backend route for the tradeoff this accepts).
- */
-export async function resetPassword(username, email, newPassword, confirmPassword) {
-    try {
-        const response = await fetch(`${BASE_URL}/api/auth/reset-password`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, email, newPassword, confirmPassword })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.message || "Failed to reset password.");
-        }
-
-        return data;
-    } catch (error) {
-        console.error("Password reset error:", error.message);
-        throw error;
-    }
-}
 
 /**
  * Fetches fresh profile database records for the securely logged-in session user.

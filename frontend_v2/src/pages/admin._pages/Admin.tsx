@@ -1,92 +1,109 @@
 import React from 'react';
-import { Link } from 'react-router';
-import { Users, MapPin, AlertTriangle, UserCog, BarChart3, Sparkles, ClipboardList, ShieldAlert } from 'lucide-react';
-import AdminShell from '@/components/AdminShell';
+import { Link, useNavigate } from 'react-router';
 import { usePageTitle } from '@/lib/usePageTitle';
 
+// Define the interface for our navigation links
 interface NavItem {
   href: string;
-  icon: React.ReactNode;
+  icon: string;
   label: string;
   sub: string;
 }
 
 const Admin: React.FC = () => {
-  usePageTitle("Admin Dashboard");
+  usePageTitle('Admin Portal');
+  const navigate = useNavigate();
+
+  // Navigation data array for cleaner maintenance
   // Only pages that are actually built and wired up are listed here.
   const navItems: NavItem[] = [
     {
       href: '/users.html',
-      icon: <Users size={22} />,
-      label: 'Driver Management',
-      sub: 'Reset passwords & remove drivers',
+      icon: '👤',
+      label: 'User Management',
+      sub: 'Add, remove & reset passwords for users',
     },
     {
       href: '/admin_locations',
-      icon: <MapPin size={22} />,
+      icon: '📍',
       label: 'Destinations',
       sub: 'View logged user destinations',
     },
     {
       href: '/reports.html',
-      icon: <AlertTriangle size={22} />,
+      icon: '⚠️',
       label: 'Hazard Reports',
       sub: 'Edit hazard type & remove reports',
     },
     {
-      href: '/admin_staff',
-      icon: <UserCog size={22} />,
-      label: 'Staff Accounts',
-      sub: 'Create Traffic Authority, Security Agency & Analyst logins',
-    },
-    {
-      href: '/admin_safety_report',
-      icon: <BarChart3 size={22} />,
+      href: '/safety_report.html',
+      icon: '📊',
       label: 'Safety Report',
-      sub: 'System-wide hazard & trip statistics',
+      sub: 'System-wide hazard & driver statistics',
     },
     {
-      href: '/trip-report',
-      icon: <ClipboardList size={22} />,
-      label: 'Trip Completion Report',
-      sub: 'Every completed trip, with server-computed duration',
-    },
-    {
-      href: '/hazard-response-report',
-      icon: <ShieldAlert size={22} />,
-      label: 'Hazard Response Report',
-      sub: 'Audit trail of who resolved (or reopened) each hazard',
-    },
-    {
-      href: '/ai-candidates',
-      icon: <Sparkles size={22} />,
+      href: '/ai_candidates.html',
+      icon: '✨',
       label: 'Live Risk Intelligence',
-      sub: 'Review AI-classified news before it reaches the risk database',
+      sub: 'Review AI-classified news before it becomes a hazard',
     },
   ];
 
+  const handleLogout = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    localStorage.clear();
+    navigate('/');
+  };
+
   return (
-    <AdminShell
-      title="Route Safety Monitor"
-      subtitle="Administrative user portal"
-      backTo="/"
-    >
-      <nav className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {navItems.map((item, index) => (
-          <Link
-            key={index}
-            to={item.href}
-            className="block p-6 bg-white border border-brand-border rounded-2xl shadow-sm transition-colors hover:border-brand-blue/40"
+    <div className="relative min-h-screen font-sans bg-[hsl(0,0%,10%)] text-white overflow-x-hidden">
+      {/* Background Image Overlay */}
+      <div
+        className="fixed inset-0 z-0 bg-cover bg-center brightness-[0.52] saturate-[0.8]"
+        style={{ backgroundImage: `url('background-image.jpeg')` }}
+      />
+      {/* Main Content Container */}
+      <div className="relative z-10 max-w-[900px] mx-auto px-16 py-[60px] max-sm:px-6">
+        <header>
+          <div className="font-['Oswald'] text-[0.8rem] tracking-[2px] text-[#f0c040] uppercase mb-[2px]">
+            Group C
+          </div>
+          <h1 className="font-['Oswald'] text-[3.4rem] font-bold text-white uppercase tracking-[3px] leading-tight mb-1.5 max-sm:text-4xl">
+            Route Safety Monitor
+          </h1>
+          <div className="text-white/60 text-[0.95rem] tracking-[2px] uppercase mb-10">
+            Administrative User Portal
+          </div>
+        </header>
+        {/* Divider */}
+        <hr className="border-0 border-t border-white/20 my-7" />
+        {/* Navigation Grid */}
+        <nav className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4 mt-8">
+          {navItems.map((item, index) => (
+            <Link
+              key={index}
+              to={item.href}
+              className="block px-6 py-5.5 bg-black/45 border border-white/15 text-white font-['Oswald'] text-[1.05rem] tracking-[1.5px] uppercase transition-colors duration-200 hover:bg-[rgba(204,34,34,0.35)] hover:border-[rgba(204,34,34,0.7)]"
+            >
+              <span className="block text-[1.6rem] mb-2">{item.icon}</span>
+              <span className="block text-[1rem]">{item.label}</span>
+              <span className="block font-['Roboto'] font-normal text-[0.75rem] text-white/50 tracking-[1px] mt-1 normal-case">
+                {item.sub}
+              </span>
+            </Link>
+          ))}
+        </nav>
+        {/* Logout Form Component */}
+        <form className="mt-8" onSubmit={handleLogout} method="POST">
+          <button
+            type="submit"
+            className="inline-block px-6 py-2.5 bg-white/10 border border-white/25 text-white/70 font-['Oswald'] text-[0.82rem] font-semibold tracking-[1.5px] uppercase cursor-pointer transition-all duration-200 hover:bg-[rgba(204,34,34,0.4)] hover:border-[rgba(204,34,34,0.7)] hover:text-white"
           >
-            <div className="w-10 h-10 rounded-xl bg-brand-blue-soft text-brand-blue flex items-center justify-center mb-3">
-              {item.icon}
-            </div>
-            <span className="block font-bold text-base">{item.label}</span>
-            <span className="block text-sm text-brand-muted mt-1">{item.sub}</span>
-          </Link>
-        ))}
-      </nav>
-    </AdminShell>
+            Log Out
+          </button>
+        </form>
+      </div>
+    </div>
   );
 };
 

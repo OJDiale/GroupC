@@ -12,37 +12,45 @@ import newImage2 from "../assets/newImage2.jpg"
 import newImage3 from "../assets/newImage2.jpg"
 import { redirect } from "react-router"
 import { API_BASE_URL } from "./apiConfig"
-import {
-  type GeoCoordinate,
-  type HazardPoint,
-  type RouteScoring,
-  INCIDENT_RADIUS_KM,
-  haversineKm,
-  sampleLine,
-  scoreRoutePath,
-} from "./safemaster"
-
-// Re-exported so existing `from "../lib/utils"` imports elsewhere in the
-// app keep working unchanged — the implementations now live in
-// ./safemaster.ts (kept dependency-free for the SafeMaster parity test).
-export type { GeoCoordinate, HazardPoint };
-export { haversineKm, scoreRoutePath };
 
 // do not modify this code it came with installations
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// Type definition for geographic coordinates: [longitude, latitude]
+export type GeoCoordinate = [number, number];
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SAFEMASTER REROUTING CONSTANTS (ported from route_optimizer.py + geo_service.py)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const OSRM_BASE = import.meta.env.VITE_OSRM_BASE_URL || "https://router.project-osrm.org/route/v1/driving";
+const OSRM_BASE = "https://router.project-osrm.org/route/v1/driving";
+const INCIDENT_RADIUS_KM = 0.6;
 const BYPASS_OFFSET_KM = 2.2;
+const W_INCIDENTS = 0.5;
+const W_AREAS = 0.3;
+const W_ALERTS = 0.2;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GEO HELPERS  (ported from geo_service.py)
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** Great-circle distance in kilometres (haversine). */
+export function haversineKm(
+  lat1: number, lon1: number,
+  lat2: number, lon2: number
+): number {
+  const R = 6371.0;
+  const p1 = (lat1 * Math.PI) / 180;
+  const p2 = (lat2 * Math.PI) / 180;
+  const dp = ((lat2 - lat1) * Math.PI) / 180;
+  const dl = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dp / 2) ** 2 +
+    Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 /** Initial bearing from point 1 → point 2 in degrees (0 = north). */
 function bearingDeg(
@@ -81,6 +89,18 @@ function destinationPoint(
   return [(lon2 * 180) / Math.PI, (lat2 * 180) / Math.PI];
 }
 
+/** Sample up to maxPoints evenly-spaced [lon, lat] pairs from a LineString. */
+function sampleLine(coords: GeoCoordinate[], maxPoints = 40): GeoCoordinate[] {
+  if (!coords.length) return [];
+  if (coords.length <= maxPoints) return coords;
+  const step = Math.max(1, Math.floor(coords.length / maxPoints));
+  const sampled: GeoCoordinate[] = [];
+  for (let i = 0; i < coords.length; i += step) sampled.push(coords[i]);
+  if (sampled[sampled.length - 1] !== coords[coords.length - 1])
+    sampled.push(coords[coords.length - 1]);
+  return sampled;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SAFEMASTER ROUTE TYPES
 // ─────────────────────────────────────────────────────────────────────────────
@@ -111,6 +131,13 @@ export interface SafeRouteResult {
   incidentsOnRoute: number;
   best: SafeRouteCandidate;
   alternatives: SafeRouteCandidate[];
+}
+
+/** A lightweight hazard point (lat/lon + optional severity 1–10). */
+export interface HazardPoint {
+  lat: number;
+  lon: number;
+  severity?: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -145,20 +172,6 @@ function parseOsrmRoutes(data: any): OsrmItem[] {
   return features;
 }
 
-const OSRM_MAX_RETRIES = 2;
-const OSRM_RETRY_BACKOFF_MS = [500, 1500];
-
-function osrmRetryDelay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Fetches one OSRM path with retry-with-backoff for transient failures.
- * Mirrors the backend port's fetchOsrmPath exactly (parallel-port rule) —
- * still returns [] on final failure, which generateSafeRoute already
- * handles via its straight-line "Direct corridor (offline routing)"
- * fallback candidate.
- */
 async function fetchOsrmPath(
   waypoints: GeoCoordinate[],
   alternatives = false
@@ -169,23 +182,73 @@ async function fetchOsrmPath(
   const url =
     `${OSRM_BASE}/${path}` +
     `?overview=full&geometries=geojson&alternatives=${alt}&steps=false`;
-
-  for (let attempt = 0; attempt <= OSRM_MAX_RETRIES; attempt++) {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) {
-        if (res.status < 500) return [];
-        throw new Error(`OSRM responded ${res.status}`);
-      }
-      return parseOsrmRoutes(await res.json());
-    } catch (err) {
-      const isLastAttempt = attempt === OSRM_MAX_RETRIES;
-      console.warn(`OSRM routing failed (attempt ${attempt + 1}/${OSRM_MAX_RETRIES + 1}):`, err);
-      if (isLastAttempt) return [];
-      await osrmRetryDelay(OSRM_RETRY_BACKOFF_MS[attempt] ?? 1500);
-    }
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    return parseOsrmRoutes(await res.json());
+  } catch {
+    return [];
   }
-  return [];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RISK SCORING  (ported from _score_route_path)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function riskLevel(score: number): "SAFE" | "WARNING" | "DANGEROUS" {
+  if (score >= 70) return "DANGEROUS";
+  if (score >= 40) return "WARNING";
+  return "SAFE";
+}
+
+interface RouteScoring {
+  riskScore: number;
+  riskLevel: "SAFE" | "WARNING" | "DANGEROUS";
+  explanation: string;
+  incidentsOnRoute: number;
+}
+
+/**
+ * Scores a route using the hazard list from your backend.
+ * Each hazard point is treated like a SafeMaster "incident" —
+ * the more hazards within INCIDENT_RADIUS_KM of the sampled path,
+ * the higher the risk score.
+ */
+function scoreRoutePath(
+  coords: GeoCoordinate[],
+  hazards: HazardPoint[]
+): RouteScoring {
+  const samples = sampleLine(coords);
+  const hitIds = new Set<number>();
+
+  samples.forEach(([lon, lat], _si) => {
+    hazards.forEach((h, hi) => {
+      if (haversineKm(lat, lon, h.lat, h.lon) <= INCIDENT_RADIUS_KM) {
+        hitIds.add(hi);
+      }
+    });
+  });
+
+  const incidentHits = hitIds.size;
+  const incidentComponent = Math.min(100, incidentHits * 12);
+  const score = Math.round(
+    Math.min(100, incidentComponent * W_INCIDENTS + 25 * W_AREAS + 0 * W_ALERTS) * 100
+  ) / 100;
+  const level = riskLevel(score);
+
+  let explanation: string;
+  if (level === "SAFE") {
+    explanation =
+      incidentHits === 0
+        ? "No major hazards detected on this corridor."
+        : `Low-risk corridor — ${incidentHits} minor hazard(s) nearby.`;
+  } else if (level === "WARNING") {
+    explanation = `Moderate risk: ${incidentHits} hazard(s) near this route.`;
+  } else {
+    explanation = `High-risk route — avoid if possible: ${incidentHits} hazard(s) detected on corridor.`;
+  }
+
+  return { riskScore: score, riskLevel: level, explanation, incidentsOnRoute: incidentHits };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -367,35 +430,14 @@ export async function generateSafeRoute(
 
   // ── Step 3: generate bypass detours around blocking hazards ───────────────
   if (blockingHazards.length > 0) {
-    const rawViaPoints = bypassViaPoints(blockingHazards, startCoord, endCoord);
-    // Snap every geometrically-computed via point to the road network before
-    // routing through it — a raw bearing/distance offset can land on a
-    // dead-end or undrivable side street, which OSRM then routes down and
-    // back out of as a mandatory waypoint (the "off-road detour that stops
-    // midway and backtracks" symptom). Mirrors snapToRoad's use in the older
-    // fetchSafeRoadRoute system, which already solved exactly this.
-    const viaPoints = await Promise.all(
-      rawViaPoints.map(([lon, lat]) => snapToRoad(lon, lat))
-    );
+    const viaPoints = bypassViaPoints(blockingHazards, startCoord, endCoord);
 
     // Single-via detours
     for (const via of viaPoints.slice(0, 8)) {
       const items = await fetchOsrmPath([startCoord, via, endCoord]);
       for (const item of items) {
         const scoring = scoreRoutePath(item.geojson.geometry.coordinates, hazards);
-        // Gate on hits against the hazards this detour was built to avoid,
-        // not the total hazard count city-wide — a detour that clears the
-        // hazards blocking the direct route is a real improvement even if
-        // it happens to pass near some unrelated hazard elsewhere. Gating
-        // on the total count instead was rejecting every detour whenever
-        // any other hazard existed nearby, which is exactly the case for
-        // hazards close to the user's own starting point (a dense local
-        // cluster), while long trips rarely pass near unrelated hazards.
-        const blockingHits = scoreRoutePath(
-          item.geojson.geometry.coordinates,
-          blockingHazards
-        ).incidentsOnRoute;
-        if (blockingHits >= blockingHazards.length) continue;
+        if (scoring.incidentsOnRoute >= blockingHazards.length) continue;
         const label =
           scoring.incidentsOnRoute === 0
             ? "Safer detour (clear of incidents)"
@@ -414,11 +456,7 @@ export async function generateSafeRoute(
       ]);
       for (const item of items) {
         const scoring = scoreRoutePath(item.geojson.geometry.coordinates, hazards);
-        const blockingHits = scoreRoutePath(
-          item.geojson.geometry.coordinates,
-          blockingHazards
-        ).incidentsOnRoute;
-        if (blockingHits === 0) {
+        if (scoring.incidentsOnRoute === 0) {
           addCandidate(
             buildCandidate(item, scoring, "Multi-point detour (clear of incidents)")
           );
@@ -458,34 +496,8 @@ export async function generateSafeRoute(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Snaps a raw coordinate to the nearest drivable road using OSRM's
- * /nearest service. Without this, the geometrically-computed detour
- * waypoints in fetchSafeRoadRoute can land on a side street that is a
- * dead-end or not drivable, which OSRM then routes down — creating the
- * "dead-end detour" the route previously produced even when it still
- * reached the destination.
- */
-async function snapToRoad(lon: number, lat: number): Promise<GeoCoordinate> {
-  const url = `${OSRM_BASE}/nearest/v1/driving/${lon},${lat}?number=1`;
-  try {
-    const response = await fetch(url);
-    if (!response.ok) return [lon, lat];
-    const data = await response.json();
-    const loc = data?.waypoints?.[0]?.location;
-    if (Array.isArray(loc) && loc.length === 2) {
-      return [Number(loc[0]), Number(loc[1])];
-    }
-    return [lon, lat];
-  } catch {
-    return [lon, lat];
-  }
-}
-
-/**
  * Calculates a real street route, actively steering the routing engine
  * around hazard zones by generating physical detour checkpoints.
- * Detour waypoints are snapped to the road network first so the engine
- * never routes through a coordinate that sits on a dead-end street.
  */
 export async function fetchSafeRoadRoute(
     start: GeoCoordinate,
@@ -531,25 +543,9 @@ export async function fetchSafeRoadRoute(
     const clearance = (pt: GeoCoordinate) =>
         Math.min(...avoidList.map(h => haversineMeters(pt, h)));
 
-    // Snap both candidates to the real road network before choosing one —
-    // a raw offset point can sit on a dead-end or un-drivable street.
-    const [snappedA, snappedB] = await Promise.all([
-        snapToRoad(candidateA[0], candidateA[1]),
-        snapToRoad(candidateB[0], candidateB[1]),
-    ]);
-
-    let detourWaypoint =
-        clearance(snappedA) >= clearance(snappedB) ? snappedA : snappedB;
-
-    // Guard: if OSRM snapped both candidates back onto the breached
-    // street (within 10 m of the breach point), fall back to the raw
-    // candidate with the most clearance instead of routing down the
-    // same hazard segment we're trying to avoid.
-    if (haversineMeters(detourWaypoint, breachPoint) < 10) {
-        detourWaypoint = clearance(candidateA) >= clearance(candidateB)
-            ? candidateA
-            : candidateB;
-    }
+    const detourWaypoint = clearance(candidateA) >= clearance(candidateB)
+        ? candidateA
+        : candidateB;
 
     const legA = await fetchSafeRoadRoute(start, detourWaypoint, avoidList, safetyRadiusMeters, _depth + 1);
     const legB = await fetchSafeRoadRoute(detourWaypoint, destination, avoidList, safetyRadiusMeters, _depth + 1);
@@ -646,11 +642,19 @@ export async function reverseGeocoding(
     return;
   }
 
+  const apiKey = "5e7b1eab70f24694a61d4362ce38f88e";
+
   try {
-    const [startPoint, endPoint] = await Promise.all([
-      geocodeReverse(gpsCoords[1], gpsCoords[0]),
-      geocodeReverse(destinationLat, destinationLon),
+    const [startRes, endRes] = await Promise.all([
+      fetch(`https://api.geoapify.com/v1/geocode/reverse?lat=${gpsCoords[1]}&lon=${gpsCoords[0]}&format=json&apiKey=${apiKey}`),
+      fetch(`https://api.geoapify.com/v1/geocode/reverse?lat=${destinationLat}&lon=${destinationLon}&format=json&apiKey=${apiKey}`)
     ]);
+
+    const startData = await startRes.json();
+    const endData = await endRes.json();
+
+    const startPoint = startData.results?.[0];
+    const endPoint = endData.results?.[0];
 
     if (startPoint && endPoint) {
       setMapPopupInfo([
@@ -713,45 +717,20 @@ export function doesRouteInterceptAvoidZone(
   return shortestDistance <= avoidRadiusInKm;
 }
 
-export const BASE_URL = API_BASE_URL;
+const BASE_URL = API_BASE_URL;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GEOCODING — proxied through the backend so the Geoapify key never ships
-// in this bundle. Both call sites (reverse + autocomplete) across the app
-// go through these two functions now instead of hitting Geoapify directly.
-// ─────────────────────────────────────────────────────────────────────────────
-
-export interface GeocodeResult {
-  formatted?: string;
-  street?: string;
-  suburb?: string;
-  city_district?: string;
-  city?: string;
-  county?: string;
-  name?: string;
-  [key: string]: unknown;
-}
-
-export async function geocodeReverse(lat: number, lon: number): Promise<GeocodeResult | null> {
+export async function fetchAccidentCoordinates(): Promise<[number, number][]> {
   try {
-    const res = await fetch(`${BASE_URL}/api/geocode/reverse?lat=${lat}&lon=${lon}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.success ? data.result : null;
-  } catch (error) {
-    console.error("Reverse geocode failed:", error);
-    return null;
-  }
-}
+    const response = await fetch("http://localhost:8002/mapper/api/history");
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-export async function geocodeAutocomplete(text: string): Promise<any[]> {
-  try {
-    const res = await fetch(`${BASE_URL}/api/geocode/autocomplete?text=${encodeURIComponent(text)}`);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.features || [];
+    const data = await response.json();
+    const coordinates: [number, number][] = data.features.map(
+      (feature: any) => feature.geometry.coordinates
+    );
+    return coordinates;
   } catch (error) {
-    console.error("Autocomplete geocode failed:", error);
+    console.error("Failed to fetch accident coordinates:", error);
     return [];
   }
 }
@@ -832,6 +811,8 @@ export function formatRelativeTime(dbDateString: string): string {
 export async function fetchAndResolveHazardReports(
   setReports?: React.Dispatch<React.SetStateAction<UIHazardReport[]>>
 ): Promise<UIHazardReport[]> {
+  const apiKey = "5e7b1eab70f24694a61d4362ce38f88e";
+
   try {
     const response = await fetch(`${BASE_URL}/api/hazards`, {
       method: "GET",
@@ -871,7 +852,14 @@ export async function fetchAndResolveHazardReports(
     for (let i = 0; i < initialReports.length; i++) {
       const report = initialReports[i];
       try {
-        const point = await geocodeReverse(report.lat, report.lng);
+        const geoRes = await fetch(
+          `https://api.geoapify.com/v1/geocode/reverse?lat=${report.lat}&lon=${report.lng}&format=json&apiKey=${apiKey}`
+        );
+
+        if (!geoRes.ok) continue;
+
+        const geoData = await geoRes.json();
+        const point = geoData.results?.[0];
 
         if (point) {
           const updatedInfo = {
@@ -910,7 +898,6 @@ export interface DestinationLog {
   username?: string;
   startLocation: string;
   endLocation: string;
-  endedAt?: string | null;
   createdAt: string;
 }
 
@@ -923,22 +910,6 @@ const getHeaders = (token: string) => ({
   "Content-Type": "application/json",
   "Authorization": `Bearer ${token}`,
 });
-
-export async function endUserTrip(
-  destinationId: number,
-  token: string
-): Promise<{ success: boolean; message?: string }> {
-  try {
-    const response = await fetch(`${BASE_URL}/api/normal-user/destinations/${destinationId}/end`, {
-      method: "PATCH",
-      headers: getHeaders(token),
-    });
-    return await response.json();
-  } catch (error) {
-    console.error("Failed to end trip:", error);
-    return { success: false, message: "Network request processing failure." };
-  }
-}
 
 export async function logUserDestination(
   payload: NewDestinationPayload,

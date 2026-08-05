@@ -59,9 +59,7 @@ export interface Distination {
         coords : Array<number> ,
         distination : Array<number>,
         placesToAvoid : Array<[number,number]>,
-        // Standard OSRM route alternatives — owned by MapPage, populated only
-        // when the "Direction" button is clicked (no more auto-routing).
-        routes: RouteData[],
+        data:Array<GeoCoordinate>,
         // SafeMaster rerouting — passed from MapPage to MapCurrent via Outlet context
         safeRouteResult: SafeRouteResult | null,
         selectedAltIndex: number | null,

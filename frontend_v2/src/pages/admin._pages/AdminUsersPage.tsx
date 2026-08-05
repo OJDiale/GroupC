@@ -1,85 +1,87 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Trash2, KeyRound, AlertTriangle, X, Filter as FilterIcon, Download } from 'lucide-react';
+import { ArrowLeft, Trash2, KeyRound, AlertTriangle, X, Settings, UserPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { API_BASE_URL } from '@/lib/apiConfig';
 import { usePageTitle } from '@/lib/usePageTitle';
-import { API_BASE_URL } from "@/lib/apiConfig";
-import { downloadReportPdf } from '@/lib/pdfReport';
-import Pagination from '@/components/Pagination';
-import { formatDateTime } from '@/lib/formatDate';
-
-const PAGE_SIZE = 7;
+import ReportExportButtons from '@/components/admin/ReportExportButtons';
 
 /**
  * BACKEND ENDPOINTS (Express + MySQL) — confirmed against user.routes.js
  * ------------------------------------------------------------------
- * GET    /api/users/drivers          (authenticateToken, adminWare)
- *    -> { success: true, drivers: Driver[] }
- *    Joins `driver` to `user`; admins never appear in this list.
+ * GET    /api/users/all               (authenticateToken, adminWare)
+ *    -> { success: true, users: User[] }  each row includes a computed
+ *       `role` field ('admin' | 'driver')
+ *
+ * POST   /api/users                   (authenticateToken, adminWare)
+ *    body: { email, password, username, firstName, lastName, role }
+ *    -> { success: true, userId: number }
  *
  * PUT    /api/users/:user_id/password  (authenticateToken, adminWare)
  *    body: { password: string }
  *    -> { success: true, message?: string }
- *    Updates ONLY the password column on `user`.
  *
  * DELETE /api/users/:user_id          (authenticateToken, adminWare)
  *    -> { success: true, message?: string }
- *    Deletes the row from `user`; FK cascades remove the matching
- *    `driver` row automatically.
  * ------------------------------------------------------------------
  */
 
-interface Driver {
-  driver_id: number;
+interface User {
   user_id: number;
   firstname: string;
   lastname: string;
   username: string;
   email: string;
+  role: 'admin' | 'driver';
   date_created: string;
   last_login: string | null;
 }
 
 interface FilterState {
-  driverId: string;
   userId: string;
   username: string;
   email: string;
   firstname: string;
   lastname: string;
+  role: string;
 }
 
 const EMPTY_FILTERS: FilterState = {
-  driverId: '',
   userId: '',
   username: '',
   email: '',
   firstname: '',
   lastname: '',
+  role: '',
 };
 
-const CONFIG = {
-  API_BASE_URL,
+const EMPTY_ADD_FORM = {
+  firstName: '',
+  lastName: '',
+  username: '',
+  email: '',
+  password: '',
+  role: 'driver' as 'driver' | 'admin',
 };
 
-const DRIVERS_API = `${CONFIG.API_BASE_URL}/api/users/drivers`;
-const USERS_API = `${CONFIG.API_BASE_URL}/api/users`;
-
-const inputClass = "w-full h-10 px-3 bg-white border border-brand-border rounded-lg text-sm text-brand-ink placeholder:text-brand-muted outline-none focus:ring-2 focus:ring-brand-blue/40 focus:border-brand-blue";
-const labelClass = "text-[11px] font-bold uppercase tracking-wide text-brand-muted block mb-1";
+const USERS_ALL_API = `${API_BASE_URL}/api/users/all`;
+const USERS_API = `${API_BASE_URL}/api/users`;
 
 export default function DriverManagement() {
-  usePageTitle("Driver Management");
-  const [allDrivers, setAllDrivers] = useState<Driver[]>([]);
+  usePageTitle('User Management');
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [page, setPage] = useState(1);
+
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [addForm, setAddForm] = useState(EMPTY_ADD_FORM);
+  const [addSubmitting, setAddSubmitting] = useState(false);
 
   const [openPasswordPanel, setOpenPasswordPanel] = useState<{ [userId: number]: boolean }>({});
   const [passwordInputs, setPasswordInputs] = useState<{ [userId: number]: { password: string; confirm: string } }>({});
 
-  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; targetDriver: Driver | null }>({
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; targetUser: User | null }>({
     isOpen: false,
-    targetDriver: null,
+    targetUser: null,
   });
 
   const getAuthHeaders = () => {
@@ -90,47 +92,69 @@ export default function DriverManagement() {
     };
   };
 
-  const loadDrivers = async () => {
+  const loadUsers = async () => {
     try {
-      const res = await fetch(DRIVERS_API, {
+      const res = await fetch(USERS_ALL_API, {
         method: 'GET',
         headers: getAuthHeaders(),
       });
       const data = await res.json();
-      if (res.ok && data.success) {
-        setAllDrivers(data.drivers || []);
+      if (res.ok) {
+        setAllUsers(data.users || []);
       } else {
-        toast.error(`Failed to load drivers: ${data.message || data.error || 'Unauthorized access'}`, { id: 'driver-fetch' });
+        toast.error(`Failed to load users: ${data.message || data.error || 'Unauthorized access'}`, { id: 'user-fetch' });
       }
     } catch (e) {
-      toast.error('Could not connect to backend.', { id: 'driver-fetch' });
+      toast.error('Could not connect to backend.', { id: 'user-fetch' });
     }
   };
 
   useEffect(() => {
-    loadDrivers();
+    loadUsers();
   }, []);
 
   // --- Filtering ---
-  const filteredDrivers = useMemo(() => {
-    return allDrivers.filter((d) => {
-      if (filters.driverId && String(d.driver_id) !== filters.driverId) return false;
-      if (filters.userId && String(d.user_id) !== filters.userId) return false;
-      if (filters.username && !d.username?.toLowerCase().includes(filters.username.toLowerCase())) return false;
-      if (filters.email && !d.email?.toLowerCase().includes(filters.email.toLowerCase())) return false;
-      if (filters.firstname && !d.firstname?.toLowerCase().includes(filters.firstname.toLowerCase())) return false;
-      if (filters.lastname && !d.lastname?.toLowerCase().includes(filters.lastname.toLowerCase())) return false;
+  const filteredUsers = useMemo(() => {
+    return allUsers.filter((u) => {
+      if (filters.userId && String(u.user_id) !== filters.userId) return false;
+      if (filters.username && !u.username?.toLowerCase().includes(filters.username.toLowerCase())) return false;
+      if (filters.email && !u.email?.toLowerCase().includes(filters.email.toLowerCase())) return false;
+      if (filters.firstname && !u.firstname?.toLowerCase().includes(filters.firstname.toLowerCase())) return false;
+      if (filters.lastname && !u.lastname?.toLowerCase().includes(filters.lastname.toLowerCase())) return false;
+      if (filters.role && u.role !== filters.role) return false;
       return true;
     });
-  }, [allDrivers, filters]);
+  }, [allUsers, filters]);
 
   const clearFilters = () => setFilters(EMPTY_FILTERS);
 
-  const pageCount = Math.max(1, Math.ceil(filteredDrivers.length / PAGE_SIZE));
-  useEffect(() => { setPage(1); }, [filters]);
-  const pagedDrivers = filteredDrivers.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  // --- Add user ---
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddSubmitting(true);
+    try {
+      const res = await fetch(USERS_API, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(addForm),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success('User created.', { id: 'user-action' });
+        setIsAddOpen(false);
+        setAddForm(EMPTY_ADD_FORM);
+        loadUsers();
+      } else {
+        toast.error(`Failed to create user: ${data.message || 'Operation denied'}`, { id: 'user-action' });
+      }
+    } catch (e) {
+      toast.error('Create request failed.', { id: 'user-action' });
+    } finally {
+      setAddSubmitting(false);
+    }
+  };
 
-  // --- Password update (the only editable field) ---
+  // --- Password update ---
   const togglePasswordPanel = (userId: number) => {
     setOpenPasswordPanel((prev) => ({ ...prev, [userId]: !prev[userId] }));
     setPasswordInputs((prev) => ({ ...prev, [userId]: { password: '', confirm: '' } }));
@@ -155,7 +179,7 @@ export default function DriverManagement() {
       return;
     }
 
-    toast.loading('Updating password...', { id: 'driver-action' });
+    toast.loading('Updating password...', { id: 'user-action' });
 
     try {
       const res = await fetch(`${USERS_API}/${userId}/password`, {
@@ -166,23 +190,23 @@ export default function DriverManagement() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        toast.success('Password updated.', { id: 'driver-action' });
+        toast.success('Password updated.', { id: 'user-action' });
         setOpenPasswordPanel((prev) => ({ ...prev, [userId]: false }));
         setPasswordInputs((prev) => ({ ...prev, [userId]: { password: '', confirm: '' } }));
       } else {
-        toast.error(`Failed to update password: ${data.message || data.error || 'Operation denied'}`, { id: 'driver-action' });
+        toast.error(`Failed to update password: ${data.message || data.error || 'Operation denied'}`, { id: 'user-action' });
       }
     } catch (e) {
-      toast.error('Update request failed.', { id: 'driver-action' });
+      toast.error('Update request failed.', { id: 'user-action' });
     }
   };
 
   // --- Delete ---
   const executeDeleteUser = async () => {
-    if (!deleteModal.targetDriver) return;
-    const userId = deleteModal.targetDriver.user_id;
+    if (!deleteModal.targetUser) return;
+    const userId = deleteModal.targetUser.user_id;
 
-    toast.loading('Deleting driver account...', { id: 'driver-action' });
+    toast.loading('Deleting user account...', { id: 'user-action' });
 
     try {
       const res = await fetch(`${USERS_API}/${userId}`, {
@@ -192,192 +216,248 @@ export default function DriverManagement() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        toast.success(data.message || 'Driver account deleted.', { id: 'driver-action' });
-        setDeleteModal({ isOpen: false, targetDriver: null });
-        loadDrivers();
+        toast.success(data.message || 'User account deleted.', { id: 'user-action' });
+        setDeleteModal({ isOpen: false, targetUser: null });
+        loadUsers();
       } else {
-        toast.error(`Delete rejected: ${data.message || data.error || 'Forbidden'}`, { id: 'driver-action' });
+        toast.error(`Delete rejected: ${data.message || data.error || 'Forbidden'}`, { id: 'user-action' });
       }
     } catch (e) {
-      toast.error('Delete request failed.', { id: 'driver-action' });
+      toast.error('Delete request failed.', { id: 'user-action' });
     }
   };
 
   return (
-    <div className="space-y-4">
-      <p className="text-brand-muted text-sm">Reset passwords and remove driver accounts.</p>
+    <div className="relative min-h-screen bg-[#1a1a1a] font-['Roboto',sans-serif] text-white overflow-x-hidden">
+      <div
+        className="fixed inset-0 z-0 bg-cover bg-center"
+        style={{
+          backgroundImage: `url('background-image.jpeg')`,
+          filter: 'brightness(0.52) saturate(0.8)',
+        }}
+      />
 
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <input
-          type="text"
-          name="driver-quick-search"
-          placeholder="Quick search by username"
-          value={filters.username}
-          onChange={(e) => setFilters((prev) => ({ ...prev, username: e.target.value }))}
-          className={`${inputClass} max-w-sm`}
-          autoComplete="off"
-        />
-        <div className="flex gap-2">
-          <button
-            onClick={() => downloadReportPdf({
-              title: 'Driver Management Report', filename: 'driver-management-report.pdf',
-              columns: ['Driver ID', 'User ID', 'First name', 'Last name', 'Username', 'Email', 'Created at', 'Last login'],
-              rows: filteredDrivers.map((driver) => [driver.driver_id, driver.user_id, driver.firstname, driver.lastname, driver.username, driver.email, driver.date_created, driver.last_login]),
-            })}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
-          >
-            <Download size={14} /> Download PDF
-          </button>
+      <div className="relative z-10 p-9 max-w-[1300px] mx-auto">
+        <h1 className="font-['Oswald',sans-serif] text-[2.8rem] font-bold uppercase tracking-[2px] mb-1">
+          User Management
+        </h1>
+        <a
+          href="/admin"
+          className="inline-block mb-7 text-[#f0c040] text-[0.85rem] font-medium tracking-[1px] no-underline transition-colors duration-200 hover:text-white"
+        >
+          <ArrowLeft className="inline-block w-4 h-4 mr-1 align-baseline" /> Go Back to Home
+        </a>
+
+        <h2 className="font-['Oswald',sans-serif] text-[1.35rem] font-semibold uppercase tracking-[1px] mb-3.5">
+          User List
+        </h2>
+
+        {/* Toolbar */}
+        <div className="flex flex-wrap items-center gap-2.5 mb-3">
+          <input
+            type="text"
+            placeholder="Quick search by username"
+            value={filters.username}
+            onChange={(e) => setFilters((prev) => ({ ...prev, username: e.target.value }))}
+            className="min-w-[260px] p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none placeholder-[#888]"
+          />
           <button
             onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
+            className="inline-flex items-center gap-1.5 p-[8px_18px] border border-white/25 font-['Oswald',sans-serif] text-[0.82rem] font-semibold tracking-[1.5px] uppercase cursor-pointer transition-colors duration-200 bg-white/18 text-white hover:bg-white/28"
           >
-            <FilterIcon size={14} /> Filter
+            <Settings className="w-3.5 h-3.5" /> Filter
           </button>
+          <button
+            onClick={() => setIsAddOpen(true)}
+            className="inline-flex items-center gap-1.5 p-[8px_18px] border border-[#f0c040]/60 font-['Oswald',sans-serif] text-[0.82rem] font-semibold tracking-[1.5px] uppercase cursor-pointer transition-colors duration-200 bg-[#f0c040]/15 text-[#f0c040] hover:bg-[#f0c040]/25"
+          >
+            <UserPlus className="w-3.5 h-3.5" /> Add User
+          </button>
+          <ReportExportButtons basePath="/api/users/all" filename="user_management" onError={(m) => toast.error(m, { id: 'export' })} />
         </div>
-      </div>
 
-      {isFilterOpen && (
-        <div className="bg-white border border-brand-border rounded-2xl p-5">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <div>
-              <label className={labelClass}>Driver ID</label>
-              <input type="number" placeholder="Driver ID" value={filters.driverId} onChange={(e) => setFilters((prev) => ({ ...prev, driverId: e.target.value }))} className={inputClass} />
+        {/* Filter Drawer */}
+        {isFilterOpen && (
+          <div className="bg-black/60 border border-white/18 p-[18px_22px] mb-4 w-fit max-w-full text-white">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-2.5">
+              <div>
+                <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
+                  User ID
+                </label>
+                <input
+                  type="number"
+                  placeholder="User ID"
+                  value={filters.userId}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, userId: e.target.value }))}
+                  className="w-full p-[8px_10px] bg-white/92 border-none font-['Roboto'] text-[0.86rem] text-[#333] outline-none"
+                />
+              </div>
+              <div>
+                <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
+                  Email
+                </label>
+                <input
+                  type="text"
+                  placeholder="Email contains..."
+                  value={filters.email}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, email: e.target.value }))}
+                  className="w-full p-[8px_10px] bg-white/92 border-none font-['Roboto'] text-[0.86rem] text-[#333] outline-none"
+                />
+              </div>
+              <div>
+                <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
+                  First Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="First name contains..."
+                  value={filters.firstname}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, firstname: e.target.value }))}
+                  className="w-full p-[8px_10px] bg-white/92 border-none font-['Roboto'] text-[0.86rem] text-[#333] outline-none"
+                />
+              </div>
+              <div>
+                <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
+                  Last Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="Last name contains..."
+                  value={filters.lastname}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, lastname: e.target.value }))}
+                  className="w-full p-[8px_10px] bg-white/92 border-none font-['Roboto'] text-[0.86rem] text-[#333] outline-none"
+                />
+              </div>
+              <div>
+                <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
+                  Role
+                </label>
+                <select
+                  value={filters.role}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, role: e.target.value }))}
+                  className="w-full p-[8px_10px] bg-white/92 border-none font-['Roboto'] text-[0.86rem] text-[#333] outline-none"
+                >
+                  <option value="">All roles</option>
+                  <option value="driver">Driver</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className={labelClass}>User ID</label>
-              <input type="number" placeholder="User ID" value={filters.userId} onChange={(e) => setFilters((prev) => ({ ...prev, userId: e.target.value }))} className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Email</label>
-              <input type="text" placeholder="Email contains..." value={filters.email} onChange={(e) => setFilters((prev) => ({ ...prev, email: e.target.value }))} className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>First Name</label>
-              <input type="text" placeholder="First name contains..." value={filters.firstname} onChange={(e) => setFilters((prev) => ({ ...prev, firstname: e.target.value }))} className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Last Name</label>
-              <input type="text" placeholder="Last name contains..." value={filters.lastname} onChange={(e) => setFilters((prev) => ({ ...prev, lastname: e.target.value }))} className={inputClass} />
+
+            <div className="mt-3.5">
+              <button
+                onClick={clearFilters}
+                className="inline-block p-[8px_18px] border border-white/25 font-['Oswald',sans-serif] text-[0.82rem] font-semibold tracking-[1.5px] uppercase cursor-pointer bg-white/18 text-white hover:bg-white/28"
+              >
+                Clear Filters
+              </button>
             </div>
           </div>
-          <button
-            onClick={clearFilters}
-            className="mt-4 px-4 py-2 rounded-lg border border-brand-border text-sm font-semibold text-brand-muted hover:text-brand-ink hover:border-brand-ink"
-          >
-            Clear Filters
-          </button>
-        </div>
-      )}
+        )}
 
-      <div className="border border-brand-border rounded-2xl overflow-hidden">
         <div className="w-full overflow-x-auto">
-          <table className="w-full border-collapse text-left min-w-[800px]">
+          <table className="w-full border-collapse bg-black/35 text-left min-w-[800px]">
             <thead>
-              <tr className="bg-brand-bg text-brand-muted text-[10px] font-bold uppercase tracking-wide">
-                <th className="p-2">Driver ID</th>
-                <th className="p-2">User ID</th>
-                <th className="p-2">First Name</th>
-                <th className="p-2">Last Name</th>
-                <th className="p-2">Username</th>
-                <th className="p-2">Email</th>
-                <th className="p-2">Created At</th>
-                <th className="p-2">Last Login</th>
-                <th className="p-2">Actions</th>
+              <tr className="bg-black/55 text-white font-['Oswald',sans-serif] text-[0.85rem] font-semibold uppercase tracking-[1px]">
+                <th className="p-[10px_12px] border border-white/15">User ID</th>
+                <th className="p-[10px_12px] border border-white/15">Role</th>
+                <th className="p-[10px_12px] border border-white/15">First Name</th>
+                <th className="p-[10px_12px] border border-white/15">Last Name</th>
+                <th className="p-[10px_12px] border border-white/15">Username</th>
+                <th className="p-[10px_12px] border border-white/15">Email</th>
+                <th className="p-[10px_12px] border border-white/15">Created At</th>
+                <th className="p-[10px_12px] border border-white/15">Last Login</th>
+                <th className="p-[10px_12px] border border-white/15">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-brand-border">
-              {pagedDrivers.length === 0 ? (
+            <tbody>
+              {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center text-brand-muted italic p-6 text-xs">
-                    No drivers found.
+                  <td colSpan={9} className="text-center text-white/55 italic p-4 text-[0.84rem]">
+                    No users found.
                   </td>
                 </tr>
               ) : (
-                pagedDrivers.map((d) => (
-                  <React.Fragment key={d.driver_id}>
-                    <tr className="hover:bg-brand-bg/60 transition-colors text-xs align-middle">
-                      <td className="p-2">{d.driver_id}</td>
-                      <td className="p-2">{d.user_id}</td>
-                      <td className="p-2">{d.firstname}</td>
-                      <td className="p-2">{d.lastname}</td>
-                      <td className="p-2">{d.username}</td>
-                      <td className="p-2">{d.email}</td>
-                      <td className="p-2">
-                        {formatDateTime(d.date_created)}
-                      </td>
-                      <td className="p-2">
-                        {d.last_login ? formatDateTime(d.last_login) : 'Never'}
-                      </td>
-                      <td className="p-2 whitespace-nowrap">
-                        <button
-                          onClick={() => togglePasswordPanel(d.user_id)}
-                          title="password"
-                          aria-label="password"
-                          className="inline-flex items-center justify-center p-1.5 rounded-lg bg-brand-blue-soft text-brand-blue hover:bg-brand-blue hover:text-white mr-1.5 transition-colors"
+                filteredUsers.map((u) => (
+                  <React.Fragment key={u.user_id}>
+                    <tr className="hover:bg-white/9 border-b border-white/12 transition-colors odd:bg-transparent even:bg-white/5 text-[0.84rem] align-middle">
+                      <td className="p-[9px_12px] border border-white/12">{u.user_id}</td>
+                      <td className="p-[9px_12px] border border-white/12">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-full text-[0.68rem] font-bold uppercase tracking-wide ${
+                            u.role === 'admin' ? 'bg-[#f0c040]/20 text-[#f0c040]' : 'bg-white/10 text-white/70'
+                          }`}
                         >
-                          <KeyRound size={13} />
+                          {u.role}
+                        </span>
+                      </td>
+                      <td className="p-[9px_12px] border border-white/12">{u.firstname}</td>
+                      <td className="p-[9px_12px] border border-white/12">{u.lastname}</td>
+                      <td className="p-[9px_12px] border border-white/12">{u.username}</td>
+                      <td className="p-[9px_12px] border border-white/12">{u.email}</td>
+                      <td className="p-[9px_12px] border border-white/12">
+                        {u.date_created ? new Date(u.date_created).toLocaleString() : 'N/A'}
+                      </td>
+                      <td className="p-[9px_12px] border border-white/12">
+                        {u.last_login ? new Date(u.last_login).toLocaleString() : 'Never'}
+                      </td>
+                      <td className="p-[9px_12px] border border-white/12 whitespace-nowrap">
+                        <button
+                          onClick={() => togglePasswordPanel(u.user_id)}
+                          className="inline-flex items-center gap-1 p-[7px_13px] bg-[#1a5fa8] text-white font-['Oswald'] text-[0.75rem] font-semibold tracking-[1.5px] uppercase cursor-pointer hover:bg-[#2272c3] border-none mr-1 transition-colors"
+                        >
+                          <KeyRound className="w-3 h-3" /> Password
                         </button>
                         <button
-                          onClick={() => setDeleteModal({ isOpen: true, targetDriver: d })}
-                          title="delete"
-                          aria-label="delete"
-                          className="inline-flex items-center justify-center p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-colors"
+                          onClick={() => setDeleteModal({ isOpen: true, targetUser: u })}
+                          className="inline-flex items-center gap-1 p-[7px_13px] bg-[#cc2222] text-white font-['Oswald'] text-[0.75rem] font-semibold tracking-[1.5px] uppercase cursor-pointer hover:bg-[#ee3333] border-none transition-colors"
                         >
-                          <Trash2 size={13} />
+                          <Trash2 className="w-3 h-3" /> Delete
                         </button>
                       </td>
                     </tr>
 
-                    {openPasswordPanel[d.user_id] && (
-                      <tr className="bg-brand-bg/60">
-                        <td colSpan={9} className="p-4">
-                          {/* Its own <form> boundary + autoComplete="new-password" stops
-                              Chrome's page-wide credential-autofill heuristic from reaching
-                              into the unrelated search box above and filling it with the
-                              admin's own saved login. */}
-                          <form
-                            onSubmit={(e) => { e.preventDefault(); updatePassword(d.user_id); }}
-                            className="flex flex-wrap gap-3 items-end"
-                          >
-                            <div>
-                              <label className={labelClass}>New Password</label>
+                    {openPasswordPanel[u.user_id] && (
+                      <tr className="bg-black/50">
+                        <td colSpan={9} className="p-[14px_16px] border border-white/12 bg-black/50">
+                          <div className="flex flex-wrap gap-2.5 items-end">
+                            <div className="inline-block m-[4px_10px_4px_0]">
+                              <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-0.5 tracking-[1px] uppercase">
+                                New Password
+                              </label>
                               <input
                                 type="password"
-                                name="new-password"
-                                autoComplete="new-password"
                                 placeholder="New password"
-                                value={passwordInputs[d.user_id]?.password || ''}
-                                onChange={(e) => handlePasswordInput(d.user_id, 'password', e.target.value)}
-                                className={`${inputClass} w-44`}
+                                value={passwordInputs[u.user_id]?.password || ''}
+                                onChange={(e) => handlePasswordInput(u.user_id, 'password', e.target.value)}
+                                className="w-[180px] p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none"
                               />
                             </div>
-                            <div>
-                              <label className={labelClass}>Confirm Password</label>
+                            <div className="inline-block m-[4px_10px_4px_0]">
+                              <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-0.5 tracking-[1px] uppercase">
+                                Confirm Password
+                              </label>
                               <input
                                 type="password"
-                                name="confirm-password"
-                                autoComplete="new-password"
                                 placeholder="Confirm password"
-                                value={passwordInputs[d.user_id]?.confirm || ''}
-                                onChange={(e) => handlePasswordInput(d.user_id, 'confirm', e.target.value)}
-                                className={`${inputClass} w-44`}
+                                value={passwordInputs[u.user_id]?.confirm || ''}
+                                onChange={(e) => handlePasswordInput(u.user_id, 'confirm', e.target.value)}
+                                className="w-[180px] p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none"
                               />
                             </div>
                             <button
-                              type="submit"
-                              className="h-10 px-4 rounded-lg bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
+                              onClick={() => updatePassword(u.user_id)}
+                              className="p-[9px_16px] bg-[#1a5fa8] text-white font-['Oswald'] text-[0.75rem] font-semibold tracking-[1.5px] uppercase hover:bg-[#2272c3] border-none cursor-pointer transition-colors"
                             >
                               Save
                             </button>
                             <button
-                              type="button"
-                              onClick={() => togglePasswordPanel(d.user_id)}
-                              className="h-10 px-4 rounded-lg border border-brand-border text-sm font-semibold text-brand-muted hover:text-brand-ink"
+                              onClick={() => togglePasswordPanel(u.user_id)}
+                              className="p-[9px_16px] bg-transparent text-white/70 hover:text-white font-['Oswald'] text-[0.75rem] font-semibold tracking-[1.5px] uppercase border border-white/25 cursor-pointer transition-colors"
                             >
                               Cancel
                             </button>
-                          </form>
+                          </div>
                         </td>
                       </tr>
                     )}
@@ -388,45 +468,166 @@ export default function DriverManagement() {
           </table>
         </div>
       </div>
-      <Pagination page={page} pageCount={pageCount} onPageChange={setPage} />
+
+      {/* Add User Modal */}
+      {isAddOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <form
+            onSubmit={handleAddUser}
+            className="relative w-full max-w-md bg-[#222] border border-white/10 p-6 shadow-2xl text-left space-y-3.5"
+          >
+            <button
+              type="button"
+              onClick={() => { setIsAddOpen(false); setAddForm(EMPTY_ADD_FORM); }}
+              className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="font-['Oswald',sans-serif] text-xl font-semibold uppercase tracking-[1px] text-white mb-1">
+              Add New User
+            </h3>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <div>
+                <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
+                  First Name
+                </label>
+                <input
+                  required
+                  type="text"
+                  value={addForm.firstName}
+                  onChange={(e) => setAddForm((p) => ({ ...p, firstName: e.target.value }))}
+                  className="w-full p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none"
+                />
+              </div>
+              <div>
+                <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
+                  Last Name
+                </label>
+                <input
+                  required
+                  type="text"
+                  value={addForm.lastName}
+                  onChange={(e) => setAddForm((p) => ({ ...p, lastName: e.target.value }))}
+                  className="w-full p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
+                Username
+              </label>
+              <input
+                required
+                type="text"
+                value={addForm.username}
+                onChange={(e) => setAddForm((p) => ({ ...p, username: e.target.value }))}
+                className="w-full p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
+                Email
+              </label>
+              <input
+                required
+                type="email"
+                value={addForm.email}
+                onChange={(e) => setAddForm((p) => ({ ...p, email: e.target.value }))}
+                className="w-full p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
+                Password
+              </label>
+              <input
+                required
+                minLength={6}
+                type="password"
+                value={addForm.password}
+                onChange={(e) => setAddForm((p) => ({ ...p, password: e.target.value }))}
+                className="w-full p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
+                Role
+              </label>
+              <select
+                value={addForm.role}
+                onChange={(e) => setAddForm((p) => ({ ...p, role: e.target.value as 'driver' | 'admin' }))}
+                className="w-full p-[9px_12px] bg-white/92 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none"
+              >
+                <option value="driver">Driver</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/5">
+              <button
+                type="button"
+                onClick={() => { setIsAddOpen(false); setAddForm(EMPTY_ADD_FORM); }}
+                className="px-4 py-2 bg-transparent text-white/70 hover:text-white text-xs tracking-[1px] font-semibold uppercase transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={addSubmitting}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#1a5fa8] hover:bg-[#2272c3] disabled:opacity-50 text-white font-['Oswald'] text-xs font-semibold tracking-[1.5px] uppercase transition-colors"
+              >
+                <UserPlus className="w-3.5 h-3.5" /> {addSubmitting ? 'Creating…' : 'Create User'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
-      {deleteModal.isOpen && deleteModal.targetDriver && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="relative w-full max-w-md bg-white rounded-2xl border border-brand-border p-6 shadow-2xl text-left">
+      {deleteModal.isOpen && deleteModal.targetUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="relative w-full max-w-md bg-[#222] border border-white/10 p-6 shadow-2xl text-left">
             <button
-              onClick={() => setDeleteModal({ isOpen: false, targetDriver: null })}
-              className="absolute top-4 right-4 text-brand-muted hover:text-brand-ink transition-colors"
+              onClick={() => setDeleteModal({ isOpen: false, targetUser: null })}
+              className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
             >
-              <X size={18} />
+              <X className="w-5 h-5" />
             </button>
 
             <div className="flex items-start gap-4 mb-4">
-              <div className="p-3 bg-red-50 text-red-600 rounded-xl shrink-0">
-                <AlertTriangle size={22} />
+              <div className="p-3 bg-red-950 text-red-400 rounded-lg shrink-0 border border-red-900/50">
+                <AlertTriangle className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-lg font-bold">Confirm Deletion</h3>
-                <p className="text-sm text-brand-muted mt-1 leading-relaxed">
-                  Are you sure you want to permanently delete driver account{' '}
-                  <span className="text-brand-ink font-mono font-bold">@{deleteModal.targetDriver.username}</span>?
+                <h3 className="font-['Oswald',sans-serif] text-xl font-semibold uppercase tracking-[1px] text-white">
+                  Confirm Deletion
+                </h3>
+                <p className="text-sm text-white/60 mt-1 leading-relaxed">
+                  Are you sure you want to permanently delete the {deleteModal.targetUser.role} account{' '}
+                  <span className="text-[#f0c040] font-mono font-bold">@{deleteModal.targetUser.username}</span>?
                   This action cannot be undone.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-brand-border">
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-white/5">
               <button
-                onClick={() => setDeleteModal({ isOpen: false, targetDriver: null })}
-                className="px-4 py-2 text-sm font-semibold text-brand-muted hover:text-brand-ink transition-colors"
+                onClick={() => setDeleteModal({ isOpen: false, targetUser: null })}
+                className="px-4 py-2 bg-transparent text-white/70 hover:text-white text-xs tracking-[1px] font-semibold uppercase transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={executeDeleteUser}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#cc2222] hover:bg-[#ee3333] text-white font-['Oswald'] text-xs font-semibold tracking-[1.5px] uppercase transition-colors shadow-lg shadow-red-900/20"
               >
-                <Trash2 size={14} /> Delete Driver
+                <Trash2 className="w-3.5 h-3.5" /> Delete User
               </button>
             </div>
           </div>

@@ -51,18 +51,18 @@ export default function NotFoundPage(): React.JSX.Element {
             />
 
             {/* MINIMALIST STARK TYPOGRAPHY */}
-            <div className="relative z-20 max-w-4xl w-full text-center space-y-8 sm:space-y-16">
-
+            <div className="relative z-20 max-w-4xl w-full text-center space-y-16">
+                
                 {/* Giant Experimental 404 Canvas */}
                 <div className="relative inline-block">
-                    <h1 className="text-7xl sm:text-9xl md:text-[16rem] lg:text-[22rem] font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white/40 to-transparent leading-none select-none opacity-90">
+                    <h1 className="text-[12rem] md:text-[22rem] font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white/40 to-transparent leading-none select-none opacity-90">
                         404
                     </h1>
                     <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-transparent to-transparent bottom-0 h-1/3 w-full" />
                 </div>
 
                 {/* Plain, Contextual Error Communication */}
-                <div className="space-y-4 max-w-lg mx-auto -mt-4 sm:-mt-12 md:-mt-24">
+                <div className="space-y-4 max-w-lg mx-auto -mt-12 md:-mt-24">
                     <span className="text-blue-500 font-mono text-xs tracking-[0.25em] uppercase block">
                         [ Error Code: Route Unresolved ]
                     </span>

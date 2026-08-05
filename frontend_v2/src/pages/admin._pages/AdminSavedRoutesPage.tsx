@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Trash2, ArrowLeft } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
-import { API_BASE_URL } from "@/lib/apiConfig";
 
 // --- TypeScript Interfaces ---
 interface SavedRoute {
@@ -16,7 +15,7 @@ interface SavedRoute {
 
 // Global Configuration Mock
 const CONFIG = {
-  API_BASE_URL,
+  API_BASE_URL: (window as any).CONFIG?.API_BASE_URL || 'http://localhost:5000',
 };
 
 const API = `${CONFIG.API_BASE_URL}/api/saved-routes`;

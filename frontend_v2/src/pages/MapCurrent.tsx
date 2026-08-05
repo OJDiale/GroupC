@@ -1,15 +1,17 @@
 import { useOutletContext, useSearchParams } from "react-router"
-import { MarkerContent, MapMarker, MarkerPopup, MapRoute } from "../components/ui/map"
+import { MapControls, MarkerContent, MapMarker, MarkerPopup, MapRoute } from "../components/ui/map"
 import { useEffect, useState, useMemo } from "react"
-import { type Distination, type PlaceInformation } from "../lib/types"
+import { type Distination, type PlaceInformation, type RouteData } from "../lib/types"
 import {
   reverseGeocoding,
+  fetchRoutes,
+  fetchSafeRoadRoute,
   type GeoCoordinate,
   // ── SafeMaster rerouting ──────────────────────────────────────────────────
   type SafeRouteResult,
 } from "../lib/utils"
 import Spinner from "../components/Spinner"
-import { usePageTitle } from "@/lib/usePageTitle";
+import { usePageTitle } from "@/lib/usePageTitle"
 
 // Extended outlet context type — includes SafeMaster rerouting fields
 interface MapCurrentContext extends Distination {
@@ -18,37 +20,37 @@ interface MapCurrentContext extends Distination {
 }
 
 export default function MapCurrent() {
-  usePageTitle("Live Route");
+  usePageTitle("Map")
   const [searchParams] = useSearchParams()
 
   const {
     coords,
-    routes,
+    placesToAvoid,
+    data,
     safeRouteResult,
     selectedAltIndex,
   }: MapCurrentContext = useOutletContext()
 
   const [pinnedInfo, setPinnedInfo] = useState<Array<PlaceInformation>>([{ city: "", street: "" }])
+  const [routes, setRoutes] = useState<RouteData[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   const distinationLon = searchParams.get("lon") && Number(searchParams.get("lon"))
   const distinationLat = searchParams.get("lat") && Number(searchParams.get("lat"))
 
-  // Route lines themselves are no longer auto-fetched here — MapPage owns
-  // `routes` (via Outlet context) and only populates it when the driver
-  // clicks "Direction". This effect just keeps the marker-popup place names
-  // (start/destination address) resolved, which is informational and not a
-  // routing calculation.
   useEffect(() => {
+    fetchRoutes(coords, distinationLat, distinationLon, setRoutes, setIsLoading)
     reverseGeocoding(coords, distinationLat, distinationLon, setPinnedInfo)
   }, [coords, distinationLat, distinationLon])
 
   // ── SafeMaster rerouting: decide which geometry to render ─────────────────
   //
   // Priority:
-  //   1. If a SafeRouteResult exists, show the selected alternative
+  //   1. If `data` (fetchSafeRoadRoute result) has been computed, show it.
+  //   2. Else if a SafeRouteResult exists, show the selected alternative
   //      (or the best route when no alternative is selected).
-  //   2. Otherwise fall back to the standard OSRM routes from fetchRoutes.
+  //   3. Otherwise fall back to the standard OSRM routes from fetchRoutes.
 
   const safeRouteCoords: GeoCoordinate[] | null = useMemo(() => {
     if (!safeRouteResult) return null;
@@ -93,7 +95,19 @@ export default function MapCurrent() {
 
   // ── Route rendering decision ───────────────────────────────────────────────
   const directions = (() => {
-    // 1. SafeMaster generateSafeRoute result
+    // 1. fetchSafeRoadRoute result (avoidance-detour path)
+    if (data.length >= 100) {
+      return (
+        <MapRoute
+          coordinates={data}
+          color="green"
+          width={6}
+          opacity={1}
+        />
+      );
+    }
+
+    // 2. SafeMaster generateSafeRoute result
     if (safeRouteCoords && safeRouteCoords.length > 0) {
       return (
         <MapRoute
@@ -105,7 +119,7 @@ export default function MapCurrent() {
       );
     }
 
-    // 2. Standard OSRM alternatives (original behaviour)
+    // 3. Standard OSRM alternatives (original behaviour)
     return sortedRoutes.map(({ route, index }) => {
       const isSelected = index === selectedIndex;
       return (
