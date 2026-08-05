@@ -71,7 +71,7 @@ export default function MapSidebar({ onMe, onDropPin, pickingDestination, report
 
       <div className="flex-1" />
 
-      <NotificationCenter panelSide="left" />
+      <NotificationCenter panelSide="left" panelAlign="bottom" />
     </aside>
   );
 }
