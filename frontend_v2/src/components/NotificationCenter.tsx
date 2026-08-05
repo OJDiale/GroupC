@@ -25,13 +25,19 @@ interface NotificationCenterProps {
   /** MapPage uses a dark floating-toolbar theme; everywhere else is the
    * light brand theme. Defaults to light. */
   dark?: boolean;
-  /** Which edge of the trigger button the popup panel anchors to and
-   * expands away from. "right" (default) pins the panel's right edge to
-   * the trigger, extending leftward — the original behavior. "left" pins
-   * the panel's left edge instead, extending rightward — needed when the
-   * bell sits at the bottom of a left-edge sidebar, where extending
-   * leftward would run off-screen. */
+  /** Which side of the trigger button the popup panel opens toward.
+   * "right" (default) opens leftward from a right-aligned anchor — the
+   * original behavior. "left" opens rightward, positioned just past the
+   * trigger's right edge — needed when the bell sits in a left-edge
+   * sidebar, where opening leftward would run off-screen. */
   panelSide?: "left" | "right";
+  /** Which edge the panel's vertical position is pinned to. "top"
+   * (default) drops the panel down below the trigger. "bottom" pins the
+   * panel's bottom edge level with the trigger instead, growing upward —
+   * needed when the trigger sits near the bottom of the viewport (e.g. the
+   * map sidebar's bell), where dropping down would get clipped by the
+   * screen edge. */
+  panelAlign?: "top" | "bottom";
 }
 
 /**
@@ -40,7 +46,7 @@ interface NotificationCenterProps {
  * (see driver_notifications migration comment for why). Polls its own
  * endpoint; only renders once logged in.
  */
-export default function NotificationCenter({ dark = false, panelSide = "right" }: NotificationCenterProps) {
+export default function NotificationCenter({ dark = false, panelSide = "right", panelAlign = "top" }: NotificationCenterProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -99,10 +105,11 @@ export default function NotificationCenter({ dark = false, panelSide = "right" }
   const buttonClass = dark
     ? "relative p-2 text-slate-300 hover:text-blue-300 transition-colors"
     : "relative p-2 text-brand-muted hover:text-brand-ink transition-colors";
-  const sideClass = panelSide === "left" ? "left-0" : "right-0";
+  const sideClass = panelSide === "left" ? "left-full ml-2" : "right-0";
+  const alignClass = panelAlign === "bottom" ? "bottom-0" : "top-full mt-2";
   const panelClass = dark
-    ? `absolute ${sideClass} mt-2 w-80 max-w-[90vw] bg-slate-900/95 backdrop-blur-2xl border border-blue-500/30 rounded-2xl shadow-2xl overflow-hidden z-[1000]`
-    : `absolute ${sideClass} mt-2 w-80 max-w-[90vw] bg-white border border-brand-border rounded-2xl shadow-xl overflow-hidden z-[1000]`;
+    ? `absolute ${sideClass} ${alignClass} w-80 max-w-[90vw] bg-slate-900/95 backdrop-blur-2xl border border-blue-500/30 rounded-2xl shadow-2xl overflow-hidden z-[1000]`
+    : `absolute ${sideClass} ${alignClass} w-80 max-w-[90vw] bg-white border border-brand-border rounded-2xl shadow-xl overflow-hidden z-[1000]`;
   const headerClass = dark
     ? "flex items-center justify-between px-4 py-3 border-b border-blue-500/20"
     : "flex items-center justify-between px-4 py-3 border-b border-brand-border";
