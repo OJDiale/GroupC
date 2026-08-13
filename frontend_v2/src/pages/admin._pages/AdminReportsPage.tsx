@@ -1,8 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Settings, Trash2, ArrowLeft, Pencil, Check, X } from 'lucide-react';
-import { API_BASE_URL } from '@/lib/apiConfig';
+import { useState, useEffect, useMemo } from 'react';
+import { Trash2, Pencil, Check, X, Download, Filter as FilterIcon } from 'lucide-react';
 import { usePageTitle } from '@/lib/usePageTitle';
-import ReportExportButtons from '@/components/admin/ReportExportButtons';
+import { API_BASE_URL } from "@/lib/apiConfig";
+import { downloadReportPdf } from '@/lib/pdfReport';
+import Pagination from '@/components/Pagination';
+import { formatDateTime } from '@/lib/formatDate';
+
+const PAGE_SIZE = 7;
 
 /**
  * BACKEND ENDPOINTS (Express + MySQL) — confirmed against hazards.route.js
@@ -37,13 +41,19 @@ interface HazardReport {
 // Adjust this list to match whatever hazard categories the system actually uses.
 const HAZARD_TYPES = ['pothole', 'flooding', 'accident', 'debris', 'construction', 'roadblock', 'other'];
 
-const API = `${API_BASE_URL}/api/hazards`;
+const CONFIG = {
+  API_BASE_URL,
+};
+
+const API = `${CONFIG.API_BASE_URL}/api/hazards`;
+
+const inputClass = "w-full h-10 px-3 bg-white border border-brand-border rounded-lg text-sm text-brand-ink placeholder:text-brand-muted outline-none focus:ring-2 focus:ring-brand-blue/40 focus:border-brand-blue";
+const labelClass = "text-[11px] font-bold uppercase tracking-wide text-brand-muted block mb-1";
 
 export default function HazardReports() {
-  usePageTitle('Hazard Reports');
+  usePageTitle("Hazard Reports");
   const [allReports, setAllReports] = useState<HazardReport[]>([]);
 
-  // Filter fields
   const [searchHazardType, setSearchHazardType] = useState('');
   const [filterHazardId, setFilterHazardId] = useState('');
   const [filterUserId, setFilterUserId] = useState('');
@@ -52,11 +62,11 @@ export default function HazardReports() {
   const [filterDateTo, setFilterDateTo] = useState('');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  // Inline edit state for hazardType
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
 
   const [toast, setToast] = useState<{ msg: string; type: string } | null>(null);
+  const [page, setPage] = useState(1);
 
   const showToast = (msg: string, type = '') => {
     setToast({ msg, type });
@@ -71,8 +81,6 @@ export default function HazardReports() {
     };
   };
 
-  // GET /api/hazards returns a raw array, not { success, reports } —
-  // branch on res.ok instead of a body flag.
   const loadReports = async () => {
     try {
       const res = await fetch(API, { headers: getAuthHeaders() });
@@ -113,8 +121,6 @@ export default function HazardReports() {
     setEditValue('');
   };
 
-  // Backend expects { hazardType } (camelCase), matching the POST route's
-  // own body shape in hazards.route.js — not { hazard_type }.
   const saveHazardType = async (id: number) => {
     if (!editValue) {
       showToast('Hazard type cannot be empty.', 'error');
@@ -143,6 +149,19 @@ export default function HazardReports() {
     loadReports();
   }, []);
 
+  // FK dropdown: derived from the reports already loaded (each row carries
+  // its reporter's username/email) instead of a raw numeric ID the admin
+  // would have to already know.
+  const userOptions = useMemo(() => {
+    const seen = new Map<number, string>();
+    allReports.forEach((r) => {
+      if (!seen.has(r.user_id)) {
+        seen.set(r.user_id, `${r.username || 'unknown'} (${r.email || 'no email'})`);
+      }
+    });
+    return Array.from(seen.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [allReports]);
+
   const filteredReports = useMemo(() => {
     return allReports.filter((r) => {
       if (searchHazardType && !r.hazardType?.toLowerCase().includes(searchHazardType.toLowerCase())) return false;
@@ -164,151 +183,117 @@ export default function HazardReports() {
     setFilterDateTo('');
   };
 
+  const pageCount = Math.max(1, Math.ceil(filteredReports.length / PAGE_SIZE));
+  useEffect(() => { setPage(1); }, [searchHazardType, filterHazardId, filterUserId, filterUserEmail, filterDateFrom, filterDateTo]);
+  const pagedReports = filteredReports.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   return (
-    <div className="relative min-h-screen bg-[#1a1a1a] font-['Roboto',sans-serif] text-white overflow-x-hidden">
-      <div
-        className="fixed inset-0 z-0 bg-cover bg-center"
-        style={{
-          backgroundImage: `url('background-image.jpeg')`,
-          filter: 'brightness(0.52) saturate(0.8)',
-        }}
-      />
+    <div className="space-y-4">
+      <p className="text-brand-muted text-sm">Edit hazard categories or remove reports from the risk database.</p>
 
-      <div className="relative z-10 p-9 max-w-[1200px] mx-auto">
-        <h1 className="font-['Oswald',sans-serif] text-[2.8rem] font-bold uppercase tracking-[2px] mb-1">
-          Hazard Reports
-        </h1>
-        <a
-          href="/admin"
-          className="inline-block mb-7 text-[#f0c040] text-[0.85rem] font-medium tracking-[1px] no-underline transition-colors duration-200 hover:text-white"
-        >
-          <ArrowLeft className="inline-block w-4 h-4 mr-1 align-baseline" /> Go Back to Home
-        </a>
-
-        <h2 className="font-['Oswald',sans-serif] text-[1.35rem] font-semibold uppercase tracking-[1px] mb-3.5">
-          Report List
-        </h2>
-
-        {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-2.5 mb-3">
-          <input
-            type="text"
-            placeholder="Search by hazard type"
-            value={searchHazardType}
-            onChange={(e) => setSearchHazardType(e.target.value)}
-            className="min-w-[260px] p-[9px_12px] bg-white/90 border-none font-['Roboto'] text-[0.88rem] text-[#333] outline-none"
-          />
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <input
+          type="text"
+          placeholder="Search by hazard type"
+          value={searchHazardType}
+          onChange={(e) => setSearchHazardType(e.target.value)}
+          className={`${inputClass} max-w-sm`}
+        />
+        <div className="flex gap-2">
+          <button
+            onClick={() => downloadReportPdf({
+              title: 'Hazard Reports', filename: 'hazard-reports.pdf',
+              columns: ['ID', 'User ID', 'Username', 'Email', 'Latitude', 'Longitude', 'Hazard type', 'Reported at'],
+              rows: filteredReports.map((report) => [report.id, report.user_id, report.username, report.email, report.latitude, report.longitude, report.hazardType, report.createdAt]),
+            })}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
+          >
+            <Download size={14} /> Download PDF
+          </button>
           <button
             onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className="inline-flex items-center gap-1.5 p-[8px_18px] border border-white/25 font-['Oswald',sans-serif] text-[0.82rem] font-semibold tracking-[1.5px] uppercase cursor-pointer transition-colors duration-200 bg-white/18 text-white hover:bg-white/28"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
           >
-            <Settings className="w-3.5 h-3.5" /> Filter
+            <FilterIcon size={14} /> Filter
           </button>
-          <ReportExportButtons basePath="/api/hazards" filename="hazard_reports" onError={(m) => showToast(m, 'error')} />
         </div>
+      </div>
 
-        {/* Filter Panel Drawer */}
-        {isFilterOpen && (
-          <div className="bg-black/60 border border-white/18 p-[18px_22px] mb-4 w-fit max-w-full text-white">
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-2.5">
-              <div>
-                <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
-                  Hazard ID
-                </label>
-                <input
-                  type="number"
-                  placeholder="Hazard ID"
-                  value={filterHazardId}
-                  onChange={(e) => setFilterHazardId(e.target.value)}
-                  className="w-full p-[8px_10px] bg-white/90 border-none font-['Roboto'] text-[0.86rem] text-[#333] outline-none"
-                />
-              </div>
-              <div>
-                <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
-                  User ID
-                </label>
-                <input
-                  type="number"
-                  placeholder="User ID"
-                  value={filterUserId}
-                  onChange={(e) => setFilterUserId(e.target.value)}
-                  className="w-full p-[8px_10px] bg-white/90 border-none font-['Roboto'] text-[0.86rem] text-[#333] outline-none"
-                />
-              </div>
-              <div>
-                <label className="font-['Oswald',sans-serif] text-[0.72rem] text-[#f0c040] block mb-1 tracking-[1px] uppercase">
-                  User Email
-                </label>
-                <input
-                  type="text"
-                  placeholder="Email contains..."
-                  value={filterUserEmail}
-                  onChange={(e) => setFilterUserEmail(e.target.value)}
-                  className="w-full p-[8px_10px] bg-white/90 border-none font-['Roboto'] text-[0.86rem] text-[#333] outline-none"
-                />
-              </div>
+      {isFilterOpen && (
+        <div className="bg-white border border-brand-border rounded-2xl p-5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div>
+              <label className={labelClass}>Hazard ID</label>
+              <input type="number" placeholder="Hazard ID" value={filterHazardId} onChange={(e) => setFilterHazardId(e.target.value)} className={inputClass} />
             </div>
-
-            <span className="block font-['Oswald',sans-serif] text-[0.8rem] text-[#f0c040] uppercase tracking-[1.5px] mt-3.5 mb-2">
-              Date Range (Reported)
-            </span>
-            <div className="mb-2.5 text-white text-[0.85rem] flex flex-wrap gap-2 items-center">
-              From: <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="p-[4px_8px] text-[#333] bg-white/90" />
-              To: <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="p-[4px_8px] text-[#333] bg-white/90" />
+            <div>
+              <label className={labelClass}>Reported By</label>
+              <select value={filterUserId} onChange={(e) => setFilterUserId(e.target.value)} className={inputClass}>
+                <option value="">All users</option>
+                {userOptions.map(([id, label]) => (
+                  <option key={id} value={id}>{label}</option>
+                ))}
+              </select>
             </div>
-
-            <div className="mt-2">
-              <button
-                onClick={clearFilters}
-                className="inline-block p-[8px_18px] border border-white/25 font-['Oswald',sans-serif] text-[0.82rem] font-semibold tracking-[1.5px] uppercase cursor-pointer bg-white/18 text-white hover:bg-white/28"
-              >
-                Clear Filters
-              </button>
+            <div>
+              <label className={labelClass}>User Email</label>
+              <input type="text" placeholder="Email contains..." value={filterUserEmail} onChange={(e) => setFilterUserEmail(e.target.value)} className={inputClass} />
             </div>
           </div>
-        )}
 
-        {/* Reports Table */}
+          <span className={`${labelClass} mt-4 block`}>Date Range (Reported)</span>
+          <div className="flex flex-wrap gap-3 items-center text-sm">
+            <label className="flex items-center gap-2">From <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="h-9 px-2 rounded-lg border border-brand-border" /></label>
+            <label className="flex items-center gap-2">To <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="h-9 px-2 rounded-lg border border-brand-border" /></label>
+          </div>
+
+          <button
+            onClick={clearFilters}
+            className="mt-4 px-4 py-2 rounded-lg border border-brand-border text-sm font-semibold text-brand-muted hover:text-brand-ink hover:border-brand-ink"
+          >
+            Clear Filters
+          </button>
+        </div>
+      )}
+
+      <div className="border border-brand-border rounded-2xl overflow-hidden">
         <div className="w-full overflow-x-auto">
-          <table className="w-full border-collapse bg-black/35 mt-2.5 text-left min-w-[850px]">
+          <table className="w-full border-collapse text-left min-w-[850px]">
             <thead>
-              <tr className="bg-black/55 text-white font-['Oswald',sans-serif] text-[0.88rem] font-semibold uppercase tracking-[1px]">
-                <th className="p-[11px_13px] border border-white/15">ID</th>
-                <th className="p-[11px_13px] border border-white/15">User ID</th>
-                <th className="p-[11px_13px] border border-white/15">Username</th>
-                <th className="p-[11px_13px] border border-white/15">Email</th>
-                <th className="p-[11px_13px] border border-white/15">Latitude</th>
-                <th className="p-[11px_13px] border border-white/15">Longitude</th>
-                <th className="p-[11px_13px] border border-white/15">Hazard Type</th>
-                <th className="p-[11px_13px] border border-white/15">Reported At</th>
-                <th className="p-[11px_13px] border border-white/15">Actions</th>
+              <tr className="bg-brand-bg text-brand-muted text-[10px] font-bold uppercase tracking-wide">
+                <th className="p-2">ID</th>
+                <th className="p-2">User ID</th>
+                <th className="p-2">Username</th>
+                <th className="p-2">Email</th>
+                <th className="p-2">Latitude</th>
+                <th className="p-2">Longitude</th>
+                <th className="p-2">Hazard Type</th>
+                <th className="p-2">Reported At</th>
+                <th className="p-2">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {filteredReports.length === 0 ? (
+            <tbody className="divide-y divide-brand-border">
+              {pagedReports.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center text-white/50 italic p-4 text-[0.88rem]">
+                  <td colSpan={9} className="text-center text-brand-muted italic p-6 text-xs">
                     No hazard reports found.
                   </td>
                 </tr>
               ) : (
-                filteredReports.map((r) => (
-                  <tr
-                    key={r.id}
-                    className="border-b border-white/12 hover:bg-white/9 transition-colors odd:bg-transparent even:bg-white/5 text-[0.85rem] align-middle"
-                  >
-                    <td className="p-2.5 border border-white/12">{r.id}</td>
-                    <td className="p-2.5 border border-white/12">{r.user_id}</td>
-                    <td className="p-2.5 border border-white/12">{r.username || 'N/A'}</td>
-                    <td className="p-2.5 border border-white/12">{r.email || 'N/A'}</td>
-                    <td className="p-2.5 border border-white/12">{r.latitude}</td>
-                    <td className="p-2.5 border border-white/12">{r.longitude}</td>
-                    <td className="p-2.5 border border-white/12">
+                pagedReports.map((r) => (
+                  <tr key={r.id} className="hover:bg-brand-bg/60 transition-colors text-xs align-middle">
+                    <td className="p-2">{r.id}</td>
+                    <td className="p-2">{r.user_id}</td>
+                    <td className="p-2">{r.username || 'N/A'}</td>
+                    <td className="p-2">{r.email || 'N/A'}</td>
+                    <td className="p-2">{r.latitude}</td>
+                    <td className="p-2">{r.longitude}</td>
+                    <td className="p-2">
                       {editingId === r.id ? (
                         <select
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
-                          className="p-[6px_8px] bg-white/92 border-none font-['Roboto'] text-[0.85rem] text-[#333] outline-none"
+                          className="h-9 px-2 rounded-lg border border-brand-border text-sm"
                         >
                           {HAZARD_TYPES.map((type) => (
                             <option key={type} value={type}>
@@ -317,41 +302,49 @@ export default function HazardReports() {
                           ))}
                         </select>
                       ) : (
-                        r.hazardType
+                        <span className="capitalize">{r.hazardType}</span>
                       )}
                     </td>
-                    <td className="p-2.5 border border-white/12">
-                      {r.createdAt ? new Date(r.createdAt).toLocaleString() : 'N/A'}
+                    <td className="p-2">
+                      {formatDateTime(r.createdAt)}
                     </td>
-                    <td className="p-2.5 border border-white/12 whitespace-nowrap">
+                    <td className="p-2 whitespace-nowrap">
                       {editingId === r.id ? (
                         <>
                           <button
                             onClick={() => saveHazardType(r.id)}
-                            className="inline-flex items-center gap-1 p-[6px_12px] bg-[#1a5fa8] text-white text-[0.75rem] uppercase tracking-wider font-semibold hover:bg-[#2272c3] mr-1"
+                            title="save"
+                            aria-label="save"
+                            className="inline-flex items-center justify-center p-1.5 rounded-lg bg-brand-ink text-white hover:bg-brand-blue-dark mr-1.5"
                           >
-                            <Check className="w-3 h-3" /> Save
+                            <Check size={13} />
                           </button>
                           <button
                             onClick={cancelEdit}
-                            className="inline-flex items-center gap-1 p-[6px_12px] border border-white/25 text-white/80 text-[0.75rem] uppercase tracking-wider font-semibold hover:bg-white/10"
+                            title="cancel"
+                            aria-label="cancel"
+                            className="inline-flex items-center justify-center p-1.5 rounded-lg border border-brand-border text-brand-muted hover:text-brand-ink"
                           >
-                            <X className="w-3 h-3" /> Cancel
+                            <X size={13} />
                           </button>
                         </>
                       ) : (
                         <>
                           <button
                             onClick={() => startEdit(r)}
-                            className="inline-flex items-center gap-1 p-[6px_12px] bg-[#1a5fa8] text-white text-[0.75rem] uppercase tracking-wider font-semibold hover:bg-[#2272c3] mr-1"
+                            title="edit"
+                            aria-label="edit"
+                            className="inline-flex items-center justify-center p-1.5 rounded-lg bg-brand-blue-soft text-brand-blue hover:bg-brand-blue hover:text-white mr-1.5 transition-colors"
                           >
-                            <Pencil className="w-3 h-3" /> Edit Type
+                            <Pencil size={13} />
                           </button>
                           <button
                             onClick={() => deleteReport(r.id)}
-                            className="inline-flex items-center gap-1 p-[6px_12px] bg-[#cc2222] text-white text-[0.75rem] uppercase tracking-wider font-semibold hover:bg-[#ee3333]"
+                            title="delete"
+                            aria-label="delete"
+                            className="inline-flex items-center justify-center p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-colors"
                           >
-                            <Trash2 className="w-3 h-3" /> Delete
+                            <Trash2 size={13} />
                           </button>
                         </>
                       )}
@@ -363,12 +356,12 @@ export default function HazardReports() {
           </table>
         </div>
       </div>
+      <Pagination page={page} pageCount={pageCount} onPageChange={setPage} />
 
-      {/* Toast */}
       {toast && (
         <div
-          className={`fixed bottom-6 right-6 text-white p-[11px_20px] font-['Oswald'] text-[0.88rem] tracking-[1px] z-[999] transition-all duration-300 ${
-            toast.type === 'success' ? 'bg-[#1a7a3a]' : 'bg-[#cc2222]'
+          className={`fixed bottom-6 right-6 px-5 py-3 rounded-xl text-sm font-semibold text-white shadow-xl z-[999] ${
+            toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
           }`}
         >
           {toast.msg}

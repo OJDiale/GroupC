@@ -1,16 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { RefreshCw, ArrowLeft, Settings } from 'lucide-react';
-import { API_BASE_URL } from '@/lib/apiConfig';
+import { useEffect, useMemo, useState } from 'react';
+import { RefreshCw, ArrowUpDown, Filter as FilterIcon } from 'lucide-react';
+import { formatDateTime } from '@/lib/formatDate';
+import ReportExportButtons from '@/components/ReportExportButtons';
 import { usePageTitle } from '@/lib/usePageTitle';
-import ReportExportButtons from '@/components/admin/ReportExportButtons';
+import { API_BASE_URL } from "@/lib/apiConfig";
 
-/**
- * BACKEND ENDPOINT — GET /api/reports/safety (authenticateToken, adminWare)
- * Query: from, to (date range), source, sortBy=count|name, sortDir=asc|desc.
- * -> { success, generatedAt, totals: { totalHazards, activeHazards,
- *      totalDrivers, totalTrips }, byType: [{hazardType,count}],
- *      bySource: [{source,count}], dailyTrend: [{day,count}] }
- */
+const CONFIG = {
+  API_BASE_URL,
+};
 
 interface SafetyReport {
   generatedAt: string;
@@ -19,194 +16,177 @@ interface SafetyReport {
     activeHazards: number;
     totalDrivers: number;
     totalTrips: number;
+    tripsCompleted: number;
   };
   byType: { hazardType: string; count: number }[];
   bySource: { source: string; count: number }[];
   dailyTrend: { day: string; count: number }[];
 }
 
-const API = `${API_BASE_URL}/api/reports/safety`;
-
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
-  return {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`,
-  };
-};
+const getAuthHeaders = () => ({
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${localStorage.getItem('token')}`,
+});
 
 export default function AdminSafetyReportPage() {
-  usePageTitle('Safety Report');
+  usePageTitle("Safety Report");
   const [report, setReport] = useState<SafetyReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [source, setSource] = useState('');
+  const [sortBy, setSortBy] = useState<'count' | 'name'>('count');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
-    if (from && to) {
-      params.set('from', from);
-      params.set('to', to);
-    }
+    if (from && to) { params.set('from', from); params.set('to', to); }
+    if (source) params.set('source', source);
+    params.set('sortBy', sortBy);
+    params.set('sortDir', sortDir);
     return params.toString();
-  }, [from, to]);
+  }, [from, to, source, sortBy, sortDir]);
 
   const load = async () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API}?${queryString}`, { headers: getAuthHeaders() });
+      const res = await fetch(`${CONFIG.API_BASE_URL}/api/reports/safety?${queryString}`, { headers: getAuthHeaders() });
       const data = await res.json();
       if (res.ok && data.success) {
         setReport(data);
       } else {
         setError(data.message || 'Failed to load safety report.');
       }
-    } catch (e) {
+    } catch {
       setError('Could not connect to server.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryString]);
+  useEffect(() => { load(); }, [queryString]);
+
+  const toggleSortDir = () => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
 
   const statCard = (label: string, value: number | string) => (
-    <div className="bg-black/35 border border-white/15 p-4">
-      <div className="font-['Oswald',sans-serif] text-[0.7rem] uppercase tracking-[1.5px] text-[#f0c040] mb-1.5">
-        {label}
-      </div>
-      <div className="text-[1.8rem] font-bold">{value}</div>
+    <div className="bg-white border border-brand-border rounded-2xl p-4">
+      <div className="text-brand-muted text-[10px] uppercase tracking-wide font-bold mb-1">{label}</div>
+      <div className="text-2xl font-extrabold">{value}</div>
     </div>
   );
 
   return (
-    <div className="relative min-h-screen bg-[#1a1a1a] font-['Roboto',sans-serif] text-white overflow-x-hidden">
-      <div
-        className="fixed inset-0 z-0 bg-cover bg-center"
-        style={{
-          backgroundImage: `url('background-image.jpeg')`,
-          filter: 'brightness(0.52) saturate(0.8)',
-        }}
-      />
+    <div className="space-y-4">
+      <p className="text-brand-muted text-sm">
+        {report ? `Generated ${formatDateTime(report.generatedAt)}` : "Generating report…"}
+      </p>
 
-      <div className="relative z-10 p-9 max-w-[1200px] mx-auto">
-        <h1 className="font-['Oswald',sans-serif] text-[2.8rem] font-bold uppercase tracking-[2px] mb-1">
-          Safety Report
-        </h1>
-        <a
-          href="/admin"
-          className="inline-block mb-7 text-[#f0c040] text-[0.85rem] font-medium tracking-[1px] no-underline transition-colors duration-200 hover:text-white"
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <button
+          onClick={() => setIsFilterOpen(!isFilterOpen)}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
         >
-          <ArrowLeft className="inline-block w-4 h-4 mr-1 align-baseline" /> Go Back to Home
-        </a>
-
-        <p className="text-white/50 text-[0.85rem] mb-4">
-          {report ? `Generated ${new Date(report.generatedAt).toLocaleString()}` : 'Generating report…'}
-        </p>
-
-        <div className="flex flex-wrap items-center gap-2.5 mb-3">
-          <button
-            onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className="inline-flex items-center gap-1.5 p-[8px_18px] border border-white/25 font-['Oswald',sans-serif] text-[0.82rem] font-semibold tracking-[1.5px] uppercase cursor-pointer transition-colors duration-200 bg-white/18 text-white hover:bg-white/28"
-          >
-            <Settings className="w-3.5 h-3.5" /> Filter
-          </button>
+          <FilterIcon size={14} /> Filter
+        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <ReportExportButtons basePath={`/api/reports/safety?${queryString}`} filename="safety_report" />
           <button
             onClick={load}
-            className="inline-flex items-center gap-1.5 p-[8px_18px] border border-white/25 font-['Oswald',sans-serif] text-[0.82rem] font-semibold tracking-[1.5px] uppercase cursor-pointer transition-colors duration-200 bg-white/18 text-white hover:bg-white/28"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-blue-dark"
           >
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+            <RefreshCw size={14} /> Refresh
           </button>
-          <ReportExportButtons basePath={`/api/reports/safety?${queryString}`} filename="safety_report" onError={(m) => setError(m)} />
         </div>
+      </div>
 
-        {isFilterOpen && (
-          <div className="bg-black/60 border border-white/18 p-[18px_22px] mb-4 w-fit max-w-full text-white">
-            <div className="mb-2.5 text-white text-[0.85rem] flex flex-wrap gap-2 items-center">
-              From:{' '}
-              <input
-                type="date"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                className="p-[4px_8px] text-[#333] bg-white/90"
-              />
-              To:{' '}
-              <input
-                type="date"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                className="p-[4px_8px] text-[#333] bg-white/90"
-              />
-            </div>
-            {(from || to) && (
-              <button
-                onClick={() => {
-                  setFrom('');
-                  setTo('');
-                }}
-                className="inline-block p-[8px_18px] border border-white/25 font-['Oswald',sans-serif] text-[0.82rem] font-semibold tracking-[1.5px] uppercase cursor-pointer bg-white/18 text-white hover:bg-white/28"
-              >
-                Clear Filters
-              </button>
-            )}
-          </div>
+      {isFilterOpen && (
+      <div className="flex items-end gap-3 flex-wrap bg-white border border-brand-border rounded-2xl p-4">
+        <div>
+          <label className="block text-[11px] font-bold uppercase tracking-wide text-brand-muted mb-1">From</label>
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="border border-brand-border rounded-lg px-3 py-1.5 text-sm" />
+        </div>
+        <div>
+          <label className="block text-[11px] font-bold uppercase tracking-wide text-brand-muted mb-1">To</label>
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="border border-brand-border rounded-lg px-3 py-1.5 text-sm" />
+        </div>
+        <div>
+          <label className="block text-[11px] font-bold uppercase tracking-wide text-brand-muted mb-1">Sort By</label>
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as 'count' | 'name')} className="border border-brand-border rounded-lg px-3 py-1.5 text-sm">
+            <option value="count">Count</option>
+            <option value="name">Name</option>
+          </select>
+        </div>
+        <button
+          onClick={toggleSortDir}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-brand-border text-sm font-semibold hover:border-brand-blue/40"
+          title="Toggle sort direction"
+        >
+          <ArrowUpDown size={14} /> {sortDir === 'asc' ? 'Ascending' : 'Descending'}
+        </button>
+        {(from || to || source) && (
+          <button
+            onClick={() => { setFrom(''); setTo(''); setSource(''); }}
+            className="text-sm text-brand-muted hover:text-brand-ink underline"
+          >
+            Clear filters
+          </button>
         )}
 
-        {loading && <p className="text-white/50 text-[0.85rem]">Generating report…</p>}
-        {error && <p className="text-[#ff6b6b] text-[0.85rem]">{error}</p>}
+        <div className="w-full pt-3 border-t border-brand-border flex items-center gap-4 flex-wrap">
+          <span className="text-[11px] font-bold uppercase tracking-wide text-brand-muted">Source</span>
+          {[
+            { value: '', label: 'All' },
+            { value: 'citizen', label: 'Citizen' },
+            { value: 'traffic_authority', label: 'Traffic Authority' },
+            { value: 'security_agency', label: 'Security Agency' },
+            { value: 'ai_confirmed', label: 'AI Confirmed' },
+          ].map((opt) => (
+            <label key={opt.value || 'all'} className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+              <input
+                type="radio"
+                name="source-filter"
+                checked={source === opt.value}
+                onChange={() => setSource(opt.value)}
+                className="accent-brand-blue"
+              />
+              {opt.label}
+            </label>
+          ))}
+        </div>
+      </div>
+      )}
 
-        {report && (
-          <div className="space-y-8">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {statCard('Total Hazards', report.totals.totalHazards)}
-              {statCard('Active Hazards', report.totals.activeHazards)}
-              {statCard('Registered Drivers', report.totals.totalDrivers)}
-              {statCard('Destinations Logged', report.totals.totalTrips)}
-            </div>
+      {loading && <p className="text-brand-muted text-sm">Generating report…</p>}
+      {error && <p className="text-red-600 text-sm">{error}</p>}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h2 className="font-['Oswald',sans-serif] text-[1rem] font-semibold uppercase tracking-[1px] mb-2.5 text-[#f0c040]">
-                  By Hazard Type
-                </h2>
-                <table className="w-full border-collapse bg-black/35 text-left text-[0.85rem]">
-                  <tbody>
+      {report && (
+        <div className="space-y-8">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {statCard('Total Hazards', report.totals.totalHazards)}
+            {statCard('Active Hazards', report.totals.activeHazards)}
+            {statCard('Registered Drivers', report.totals.totalDrivers)}
+            {statCard('Trips Logged', report.totals.totalTrips)}
+            {statCard('Trips Completed', report.totals.tripsCompleted)}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h2 className="text-sm font-bold uppercase tracking-wide text-brand-muted mb-3">
+                By Hazard Type
+              </h2>
+              <div className="border border-brand-border rounded-2xl overflow-hidden">
+                <table className="w-full border-collapse text-left text-sm">
+                  <tbody className="divide-y divide-brand-border">
                     {report.byType.length === 0 && (
-                      <tr>
-                        <td className="p-3 border border-white/12 text-white/50 italic">No data yet.</td>
-                      </tr>
+                      <tr><td className="p-4 text-brand-muted italic">No data yet.</td></tr>
                     )}
                     {report.byType.map((r) => (
-                      <tr key={r.hazardType} className="border-b border-white/12 hover:bg-white/9">
-                        <td className="p-2.5 border border-white/12 capitalize">{r.hazardType.replace(/_/g, ' ')}</td>
-                        <td className="p-2.5 border border-white/12 text-right font-bold">{r.count}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div>
-                <h2 className="font-['Oswald',sans-serif] text-[1rem] font-semibold uppercase tracking-[1px] mb-2.5 text-[#f0c040]">
-                  By Source
-                </h2>
-                <table className="w-full border-collapse bg-black/35 text-left text-[0.85rem]">
-                  <tbody>
-                    {report.bySource.length === 0 && (
-                      <tr>
-                        <td className="p-3 border border-white/12 text-white/50 italic">No data yet.</td>
-                      </tr>
-                    )}
-                    {report.bySource.map((r) => (
-                      <tr key={r.source} className="border-b border-white/12 hover:bg-white/9">
-                        <td className="p-2.5 border border-white/12 capitalize">{r.source.replace(/_/g, ' ')}</td>
-                        <td className="p-2.5 border border-white/12 text-right font-bold">{r.count}</td>
+                      <tr key={r.hazardType} className="hover:bg-brand-bg/60">
+                        <td className="p-3 capitalize">{r.hazardType.replace(/_/g, ' ')}</td>
+                        <td className="p-3 text-right font-bold">{r.count}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -215,35 +195,49 @@ export default function AdminSafetyReportPage() {
             </div>
 
             <div>
-              <h2 className="font-['Oswald',sans-serif] text-[1rem] font-semibold uppercase tracking-[1px] mb-2.5 text-[#f0c040]">
-                Reports (last 14 days)
+              <h2 className="text-sm font-bold uppercase tracking-wide text-brand-muted mb-3">
+                By Source
               </h2>
-              {report.dailyTrend.length === 0 ? (
-                <p className="text-white/50 italic text-[0.85rem]">No reports in this window.</p>
-              ) : (
-                <div className="flex items-end gap-2 h-32 bg-black/35 border border-white/15 p-4">
-                  {report.dailyTrend.map((d) => {
-                    const max = Math.max(...report.dailyTrend.map((x) => x.count), 1);
-                    return (
-                      <div
-                        key={d.day}
-                        className="flex-1 flex flex-col items-center justify-end h-full gap-1"
-                        title={`${d.count} on ${d.day}`}
-                      >
-                        <div
-                          className="w-full bg-[#f0c040]"
-                          style={{ height: `${(d.count / max) * 100}%`, minHeight: 4 }}
-                        />
-                        <span className="text-[9px] text-white/50">{new Date(d.day).getDate()}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <div className="border border-brand-border rounded-2xl overflow-hidden">
+                <table className="w-full border-collapse text-left text-sm">
+                  <tbody className="divide-y divide-brand-border">
+                    {report.bySource.length === 0 && (
+                      <tr><td className="p-4 text-brand-muted italic">No data yet.</td></tr>
+                    )}
+                    {report.bySource.map((r) => (
+                      <tr key={r.source} className="hover:bg-brand-bg/60">
+                        <td className="p-3 capitalize">{r.source.replace(/_/g, ' ')}</td>
+                        <td className="p-3 text-right font-bold">{r.count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-        )}
-      </div>
+
+          <div>
+            <h2 className="text-sm font-bold uppercase tracking-wide text-brand-muted mb-3">
+              Reports (last 14 days)
+            </h2>
+            {report.dailyTrend.length === 0 ? (
+              <p className="text-brand-muted italic text-sm">No reports in this window.</p>
+            ) : (
+              <div className="flex items-end gap-2 h-32 bg-white border border-brand-border rounded-2xl p-4">
+                {report.dailyTrend.map((d) => {
+                  const max = Math.max(...report.dailyTrend.map((x) => x.count), 1);
+                  return (
+                    <div key={d.day} className="flex-1 flex flex-col items-center justify-end h-full gap-1" title={`${d.count} on ${d.day}`}>
+                      <div className="w-full bg-brand-blue rounded-t" style={{ height: `${(d.count / max) * 100}%`, minHeight: 4 }} />
+                      <span className="text-[9px] text-brand-muted">{new Date(d.day).getDate()}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

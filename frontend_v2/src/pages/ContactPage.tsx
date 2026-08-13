@@ -42,79 +42,79 @@ export default function ContactPage(): React.JSX.Element {
       />
       
       {/* Deep Indigo Ambient Glows EXACTLY */}
-      <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none z-0" />
+      <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none z-0" />
       <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[400px] h-[400px] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none z-0" />
 
-      <div className="relative z-10 max-w-5xl mx-auto px-6 py-12 md:py-16 flex flex-col min-h-screen">
-        
+      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-8 md:py-16 flex flex-col min-h-screen">
+
         {/* Floating Header Actions */}
-        <div className="mb-16 flex items-center justify-between">
-          <Button 
+        <div className="mb-8 md:mb-16 flex items-center justify-between gap-3 flex-wrap">
+          <Button
             onClick={() => navigate(-1)}
-            variant="ghost" 
-            className="text-slate-400 hover:text-indigo-300 gap-2 text-xs font-bold uppercase tracking-wider bg-slate-900/60 backdrop-blur-2xl px-4 py-2 rounded-xl shadow-2xl border-none"
+            variant="ghost"
+            className="text-slate-400 hover:text-blue-300 gap-2 text-xs font-bold uppercase tracking-wider bg-slate-900/60 backdrop-blur-2xl px-4 py-2 rounded-xl shadow-2xl border-none"
           >
             <ArrowLeft size={14} /> Escape Interface
           </Button>
-          
-          <div className="flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-2xl px-3 py-1.5 rounded-xl shadow-2xl border-none">
-            <Sparkles className="h-4 w-4 text-indigo-400 animate-pulse" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">COMMS PROTOCOL v1.0.0</span>
+
+          <div className="hidden sm:flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-2xl px-3 py-1.5 rounded-xl shadow-2xl border-none">
+            <Sparkles className="h-4 w-4 text-blue-400 animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-blue-400">COMMS PROTOCOL v1.0.0</span>
           </div>
         </div>
 
         {/* Magazine Front Matter */}
-        <header className="mb-12 space-y-4 max-w-3xl">
-          <div className="inline-flex items-center gap-2 bg-indigo-950/40 px-3 py-1 rounded-full text-indigo-300 text-[11px] font-black uppercase tracking-wider border-none">
+        <header className="mb-8 md:mb-12 space-y-4 max-w-3xl">
+          <div className="inline-flex items-center gap-2 bg-blue-950/40 px-3 py-1 rounded-full text-blue-300 text-[11px] font-black uppercase tracking-wider border-none">
             <Terminal size={12} /> Live Support Feed
           </div>
-          <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white leading-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-6xl font-black tracking-tight text-white leading-tight">
             Signal the Core.<br/>Secure the Line.
           </h1>
-          <div className="h-[2px] w-16 bg-gradient-to-r from-indigo-500 to-purple-500 mt-6" />
+          <div className="h-[2px] w-16 bg-gradient-to-r from-blue-500 to-purple-500 mt-6" />
         </header>
 
         {/* Editorial Multi-Column Comms Grid */}
-        <section className="grid md:grid-cols-12 gap-8 items-start mb-16 flex-grow">
-          
+        <section className="grid md:grid-cols-12 gap-6 md:gap-8 items-start mb-12 md:mb-16 flex-grow">
+
           {/* Left Column: Premium Interactive Terminal Form */}
-          <div className="md:col-span-7 bg-slate-900/30 p-6 md:p-8 rounded-2xl backdrop-blur-md border-none shadow-2xl space-y-6">
+          <div className="md:col-span-7 bg-slate-900/30 p-5 sm:p-6 md:p-8 rounded-2xl backdrop-blur-md border-none shadow-2xl space-y-6">
             {!formSubmitted ? (
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Identity / Organization</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-blue-400">Identity / Organization</label>
                   <input 
                     type="text" 
                     required
                     placeholder="Enter name or agency"
-                    className="w-full h-11 px-4 rounded-xl bg-slate-950/60 border-none text-slate-200 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all placeholder-slate-600"
+                    className="w-full h-11 px-4 rounded-xl bg-slate-950/60 border-none text-slate-200 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all placeholder-slate-600"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Return Coordinates</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-blue-400">Return Coordinates</label>
                   <input 
                     type="email" 
                     required
                     placeholder="name@domain.com"
-                    className="w-full h-11 px-4 rounded-xl bg-slate-950/60 border-none text-slate-200 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all placeholder-slate-600"
+                    className="w-full h-11 px-4 rounded-xl bg-slate-950/60 border-none text-slate-200 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all placeholder-slate-600"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Transmission Payload</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-blue-400">Transmission Payload</label>
                   <textarea 
                     rows={5}
                     required
                     placeholder="Detail your system feedback or architectural inquiry..."
-                    className="w-full p-4 rounded-xl bg-slate-950/60 border-none text-slate-200 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all placeholder-slate-600 resize-none leading-relaxed"
+                    className="w-full p-4 rounded-xl bg-slate-950/60 border-none text-slate-200 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all placeholder-slate-600 resize-none leading-relaxed"
                   />
                 </div>
 
                 <Button 
                   type="submit"
                   disabled={loading}
-                  className="w-full h-11 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-900/20 active:scale-95 transition-all border-none cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full h-11 bg-blue-600 hover:bg-blue-500 rounded-xl text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-blue-900/20 active:scale-95 transition-all border-none cursor-pointer flex items-center justify-center gap-2"
                 >
                   {loading ? "Dispatching Signal..." : <>Broadcast Transmission <Send size={12} /></>}
                 </Button>
@@ -133,7 +133,7 @@ export default function ContactPage(): React.JSX.Element {
                 <Button 
                   onClick={() => setFormSubmitted(false)}
                   variant="ghost" 
-                  className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 hover:text-indigo-300 bg-transparent border-none"
+                  className="text-[10px] font-bold uppercase tracking-wider text-blue-400 hover:text-blue-300 bg-transparent border-none"
                 >
                   Open New Secure Session
                 </Button>
@@ -143,7 +143,7 @@ export default function ContactPage(): React.JSX.Element {
 
           {/* Right Column: Editorial Comms Sidebar Tracker */}
           <aside className="md:col-span-5 space-y-6 bg-slate-900/40 p-6 rounded-2xl backdrop-blur-md border-none shadow-xl">
-            <h4 className="text-xs font-black uppercase tracking-widest text-indigo-400">Routing Gateways</h4>
+            <h4 className="text-xs font-black uppercase tracking-widest text-blue-400">Routing Gateways</h4>
             
             <p className="text-xs text-slate-400 leading-relaxed font-normal">
               For direct architectural peer oversight, pipeline contribution access keys, or urgent cryptographic route incident adjustments, tap into our main focal relays.
@@ -153,10 +153,10 @@ export default function ContactPage(): React.JSX.Element {
 
             <ul className="space-y-6">
               <li className="flex gap-3">
-                <Globe2 size={18} className="text-indigo-400 flex-shrink-0 mt-0.5" />
+                <Globe2 size={18} className="text-blue-400 flex-shrink-0 mt-0.5" />
                 <div className="space-y-0.5">
                   <h5 className="text-xs font-black uppercase tracking-wider text-slate-200">Global Registry</h5>
-                  <p className="text-xs text-slate-400 select-all font-mono selection:bg-indigo-500/30">comms@saferoutemonitor.io</p>
+                  <p className="text-xs text-slate-400 select-all font-mono selection:bg-blue-500/30">comms@saferoutemonitor.io</p>
                 </div>
               </li>
 
@@ -173,14 +173,14 @@ export default function ContactPage(): React.JSX.Element {
         </section>
 
         {/* Bottom Callout Info Banner */}
-        <footer className="mt-auto bg-gradient-to-r from-slate-900 to-indigo-950/60 p-6 rounded-2xl shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border-none">
+        <footer className="mt-auto bg-gradient-to-r from-slate-900 to-blue-950/60 p-6 rounded-2xl shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border-none">
           <div className="space-y-1 text-center sm:text-left">
-            <h4 className="text-xs font-black uppercase tracking-widest text-indigo-400">Need immediate tracking metrics?</h4>
+            <h4 className="text-xs font-black uppercase tracking-widest text-blue-400">Need immediate tracking metrics?</h4>
             <p className="text-[11px] text-slate-400 font-medium">Initialize the telemetry matrix grid directly via the core node link.</p>
           </div>
           <Button 
             onClick={() => navigate("/map")}
-            className="w-full sm:w-auto h-9 px-5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-indigo-900/40 active:scale-95 transition-all border-none cursor-pointer"
+            className="w-full sm:w-auto h-9 px-5 bg-blue-600 hover:bg-blue-500 rounded-xl text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-blue-900/40 active:scale-95 transition-all border-none cursor-pointer"
           >
             Launch Map Matrix
           </Button>

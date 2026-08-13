@@ -1,127 +1,75 @@
-import { useState } from "react"
-import { Form, Link ,redirect,  useNavigate} from "react-router"
-import { EyeIcon  , EyeOff} from "lucide-react"
+import { Link, redirect } from "react-router"
+import { Form, useNavigation } from "react-router"
 import { addUser } from "../database/auth.js"
 import type { ActionProps } from "@/lib/types"
 import toast from "react-hot-toast"
 import { usePageTitle } from "@/lib/usePageTitle"
+import AuthBackButton from "@/components/auth/AuthBackButton"
+import AuthInput from "@/components/auth/AuthInput"
+import AuthButton from "@/components/auth/AuthButton"
 
-//test
 // eslint-disable-next-line react-refresh/only-export-components
-export async function action({request}:ActionProps){
-    localStorage.setItem("isLoggedIn",String(true))
-
+export async function action({ request }: ActionProps) {
     try {
-            const formData = await request.formData()
-            const email:string = String(formData.get("email"))
-            const password:string = String(formData.get("password"))
-            const name:string = String(formData.get("first_name"))
-            const lastName:string = String(formData.get("last_name"))
-            const username:String = String(formData.get("email")).split("@")[0]
-            //email, password, username, firstName, lastName,
-          
-            const user = await addUser(email, password, username, name,lastName)
-            toast.success("Account created successfully")
-            localStorage.setItem("userType",user.userType)
-            localStorage.setItem("token",user.token)
-            const isAdmin = user.userType === "admin"
-            localStorage.setItem("isAdmin", String(isAdmin))
-            return redirect(isAdmin ? "/admin" : "/map")
-    } catch (error) {
-             toast.error("Error adding user:" + error.message)
-             return null
-    }
+        const formData = await request.formData()
+        const username: string = String(formData.get("username"))
+        const firstName: string = String(formData.get("first_name"))
+        const lastName: string = String(formData.get("last_name"))
+        const email: string = String(formData.get("email"))
+        const password: string = String(formData.get("password"))
 
+        const user = await addUser(email, password, username, firstName, lastName)
+        toast.success("Account created successfully")
+        localStorage.setItem("userType", user.userType)
+        localStorage.setItem("token", user.token)
+        return redirect("/map")
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Error creating account."
+        toast.error(message)
+        return null
+    }
 }
 
-export default function Sigin(){
-    usePageTitle("Sign Up")
-    const [ showPassword , setShowPassword ] = useState<boolean>(false)
-    const [hasAgreed , setHasAgreed] =  useState<boolean>(false)
-    const navigate = useNavigate()
-    return<div className="text-white p-4">
-               <h1 className="text-4xl my-4">Create an account</h1>
-               <p className="text-blue-600 my-2">Already have an account? <Link to="/login" className="text-purple-500 underline">Login in</Link></p>
-               <Form 
-                   method="POST" 
-                   replace
-                   className="my-9"
-                >
-                 <div className="gap-4 flex mb-5">
-                    <input 
-                         required
-                         name="first_name"
-                         className="h-10 px-3 bg-blue-900/38 rounded-lg placeholder:text-purple-400" 
-                         placeholder="First name"
-                             style={{
-                            // Direct fix for the Chrome Autofill "Yellow/White" background bug
-                            WebkitBoxShadow: "0 0 0px 1000px transparent inset",
-                            transition: "background-color 5000s ease-in-out 0s",
-                        }}
-                    />
-                    <input 
-                          required
-                          name="last_name"
-                          className="h-10 px-3 bg-blue-900/38 rounded-lg placeholder:text-purple-400"
-                          placeholder="Last name"
-                              style={{
-                            // Direct fix for the Chrome Autofill "Yellow/White" background bug
-                            WebkitBoxShadow: "0 0 0px 1000px transparent inset",
-                            transition: "background-color 5000s ease-in-out 0s",
-                        }}
-                    />
-                 </div>
-                 <input
-                       required
-                      name="email"
-                      type="email"
-                      placeholder="Email"
-                      className="block mb-5 h-10 px-3 text-white bg-blue-900/38 w-full rounded-lg placeholder:text-purple-400"
-                          style={{
-                            // Direct fix for the Chrome Autofill "Yellow/White" background bug
-                            WebkitBoxShadow: "0 0 0px 1000px transparent inset",
-                            transition: "background-color 5000s ease-in-out 0s",
-                        }}
-                  />
-                 <div className="w-full mb-5 bg-blue-900/38
-                                 flex justify-between 
-                               focus-within:border-blue-500 
-                                focus-within:ring-1
-                                 focus-within:ring-blue-500 
-                                 items-center rounded-lg  text-white">
-                    <input
-                       required 
-                       type={showPassword ? "text":"password"}
-                       name="password"
-                       placeholder="Password"
-                       className="min-w-20 bg-transparent text-white placeholder:text-purple-400 outline-none w-full px-3 selection:bg-indigo-100 autofill:bg-transparent"
-                        style={{
-                            // Direct fix for the Chrome Autofill "Yellow/White" background bug
-                            WebkitBoxShadow: "0 0 0px 1000px transparent inset",
-                            transition: "background-color 5000s ease-in-out 0s",
-                        }}
-                       
-                    />
-                  <div 
-                            className="size-10 text-center flex items-center justify-center text-purple-400"
-                            onClick={()=>setShowPassword(pre=>!pre)}
-                            >
-                                {showPassword ? <EyeIcon /> :<EyeOff/>}
-                            </div>
-                 </div>
-                 <legend className="flex gap-2  mb-5 items-center">
-                    <input className="size-5" onClick={()=>setHasAgreed(pre=>!pre)}type="checkbox"/>
-                    <p>I agree to the <button 
-                                         onClick={()=>{
-                                            navigate("/conditions")
-                                            setHasAgreed(pre=>!pre)
-                                         }} 
-                                         className="text-purple-500 underline"
-                                        >
-                                            Terms&Conditions
-                                        </button></p>
-                 </legend>
-                 <button disabled={!hasAgreed} className={`w-full ${hasAgreed?'cursor-pointer  bg-purple-900  hover:bg-purple-600':'cursor-not-allowed bg-gray-700 hover:bg-gray-500'}  text-white py-2 px-4 rounded-lg`}>Create account</button>
-               </Form>
-         </div>
+export default function Sigin() {
+    usePageTitle("Create Account")
+    const navigation = useNavigation()
+
+    return (
+        <div className="w-[90%]">
+            <div className="w-full flex justify-start mb-2">
+                <AuthBackButton to="/login" />
+            </div>
+
+            <h1 className="w-full text-3xl font-bold text-black text-center mb-2">Create Your Account</h1>
+            <p className="w-full text-gray-400 text-center mb-6">Register to access Mapper</p>
+
+            <Form method="POST" replace className="w-full">
+                <div className="mx-auto w-[70%] space-y-4">
+                    <AuthInput label="Username" name="username" placeholder="Enter Username" />
+
+                    <div className="flex gap-[16%]">
+                        <AuthInput label="First Name" name="first_name" placeholder="Enter First Name" className="flex-1" />
+                        <AuthInput label="Last Name" name="last_name" placeholder="Enter Last Name" className="flex-1" />
+                    </div>
+
+                    <AuthInput label="Email" name="email" type="email" placeholder="Enter Email" />
+
+                    <AuthInput label="Password" name="password" type="password" placeholder="Enter Password" />
+
+                    <p className="text-gray-400 text-sm text-right">
+                        Already have an account?{" "}
+                        <Link to="/login" className="text-auth-link hover:text-auth-link-hover transition-colors font-semibold">
+                            Sign in
+                        </Link>
+                    </p>
+                </div>
+
+                <div className="mx-auto w-[40%] mt-4">
+                    <AuthButton disabled={navigation.state === "submitting"}>
+                        {navigation.state === "submitting" ? "Creating Account…" : "Create Account"}
+                    </AuthButton>
+                </div>
+            </Form>
+        </div>
+    )
 }

@@ -1,35 +1,41 @@
 
 import './index.css'
 
-import { Route, RouterProvider  ,createBrowserRouter , createRoutesFromElements,redirect} from "react-router"
+import { Route, RouterProvider  ,createBrowserRouter , createRoutesFromElements,redirect, Navigate} from "react-router"
 import Layout from './components/Layout.tsx'
 import HomePage from './pages/HomePage.tsx'
 import MapLayout from './pages/MapPage.tsx'
 import MapCurrent from './pages/MapCurrent.tsx'
-import Test from './pages/test.tsx'
 import StartSession from './pages/StartSession.tsx'
 import SignInPage , {action as signInAction} from './pages/SignInPage.tsx'
 import LoginPage, {action as loginAction} from "./pages/LoginPage.tsx"
+import ForgotPasswordPage, {action as forgotPasswordAction} from "./pages/ForgotPasswordPage.tsx"
 import AccountHolder , {loader as accountHolderLoader} from "./pages/AccountHolder.tsx"
 import { loggIn } from "./lib/utils.ts"
+import { dashboardPathForRole } from "./database/auth.js"
 import HistoralEvents from "./pages/HistoricalEvents.tsx"
 import CurrentEventMap from "./pages/CurrentEventMap.tsx"
-import AdminPage from "./pages/admin._pages/Admin.tsx"
+import AdminSidebarLayout from "./components/AdminSidebarLayout.tsx"
 import AdminLocationsPage from "./pages/admin._pages/AdminLocationsPage.tsx"
 // import AdminIncidentsPage from './pages/admin._pages/AdminIncidentsPage.tsx'
 import AdminReportsPage from './pages/admin._pages/AdminReportsPage.tsx'
 // import AdminSavedRoutesPage from './pages/admin._pages/AdminSavedRoutesPage.tsx'
 import AdminUsersPage from './pages/admin._pages/AdminUsersPage.tsx'
+import AdminStaffPage from './pages/admin._pages/AdminStaffPage.tsx'
 import AdminSafetyReportPage from './pages/admin._pages/AdminSafetyReportPage.tsx'
 import AiCandidatesPage from './pages/admin._pages/AiCandidatesPage.tsx'
-import ContactPage from './pages/ContactPage.tsx'
+import AdminTripReportPage from './pages/admin._pages/AdminTripReportPage.tsx'
+import AdminHazardResponseReportPage from './pages/admin._pages/AdminHazardResponseReportPage.tsx'
+import TrafficAuthorityDashboard from './pages/TrafficAuthorityDashboard.tsx'
+import SecurityAgencyDashboard from './pages/SecurityAgencyDashboard.tsx'
+import DataAnalystDashboard from './pages/DataAnalystDashboard.tsx'
 import NotFoundPage from './pages/NotFoundPage.tsx'
 
-//sekelton for app 
+//sekelton for app
 
 function AdminLoader(){
 
-    const isAdmin = localStorage.getItem("isAdmin") === "true"
+    const isAdmin = Boolean(localStorage.getItem("isAdmin"))
     if(!isAdmin){
         throw redirect("/login?message=access denied")
     }
@@ -37,17 +43,28 @@ function AdminLoader(){
     return null
 }
 
-// A logged-in user shouldn't sit on the marketing landing page or the
-// login/signup screens — send them straight to their dashboard instead
-// (admin portal for admins, map for drivers).
-function GuestOnlyLoader(){
-
-    const token = localStorage.getItem("token")
-    if(token){
-        const isAdmin = localStorage.getItem("isAdmin") === "true"
-        throw redirect(isAdmin ? "/admin" : "/map")
+// Generic role gate for the staff dashboards — Traffic Authority, Security
+// Agency and Data Analyst. Mirrors AdminLoader's pattern but checks the
+// stored userType against an allow-list instead of a single isAdmin flag.
+function roleLoader(...allowedRoles: string[]) {
+    return () => {
+        const userType = localStorage.getItem("userType")
+        if (!userType || !allowedRoles.includes(userType)) {
+            throw redirect("/login?message=access denied")
+        }
+        return null
     }
+}
 
+// Sends an already-logged-in user straight back to their own dashboard any
+// time they land on the marketing homepage — whether via a link/button
+// click or by navigating the browser URL/back button directly to "/".
+function homeLoader() {
+    const token = localStorage.getItem("token")
+    if (token) {
+        const userType = localStorage.getItem("userType")
+        throw redirect(dashboardPathForRole(userType))
+    }
     return null
 }
 
@@ -63,97 +80,95 @@ function App() {
           >
               <Route
                  index
-                 loader={GuestOnlyLoader}
                  element={<HomePage/>}
-
+                 loader={homeLoader}
                 />
-              <Route 
-                   path="about" 
-                   element={<Test/>}
-                />
-              <Route 
-                  path="contact" 
-                  element={<ContactPage/>}
-               />
-              <Route 
-                   path="map"  
-                   element={<MapLayout/>}
-                   loader={()=>loggIn("login first to use map")}
-              >
-                  <Route 
-                     index 
-                     element={<MapCurrent/>}
-                     loader={()=>loggIn("login first to use map")}
-                    />
-                  <Route 
-                     path="historical_events" 
-                     element={<HistoralEvents/>}
-                     loader={()=>loggIn("login first to use map")}
-                   />
-                  <Route 
-                     path="current_events" 
-                     element={<CurrentEventMap/>}
-                     loader={()=>loggIn("login first to use map")}
-                  />
-                  <Route 
-                     path="safe_route" 
-                     element={<h1>Current location</h1>}
-                     loader={()=>loggIn("login first to use map")}
-                   />
-              </Route>
-              <Route 
-                 path="account" 
+              <Route
+                 path="account"
                  loader={accountHolderLoader}
                  element={<AccountHolder/>}
                />
-              <Route 
-                  path="*" 
+              <Route
+                  path="*"
                   element={<NotFoundPage/>}
                 />
+          </Route>
+          {/*
+            The map is its own full-screen app shell, deliberately NOT nested
+            under the marketing Layout — Layout's sticky header + footer were
+            pushing the map's own h-screen toolbar below the fold.
+          */}
+          <Route
+               path="map"
+               element={<MapLayout/>}
+               loader={()=>loggIn("login first to use map")}
+          >
+              <Route
+                 index
+                 element={<MapCurrent/>}
+                 loader={()=>loggIn("login first to use map")}
+                />
+              <Route
+                 path="historical_events"
+                 element={<HistoralEvents/>}
+                 loader={()=>loggIn("login first to use map")}
+               />
+              <Route
+                 path="current_events"
+                 element={<CurrentEventMap/>}
+                 loader={()=>loggIn("login first to use map")}
+              />
           </Route>
           <Route
             path="admin"
             loader={AdminLoader}
-            element={<AdminPage/>}
-        />
+            element={<AdminSidebarLayout/>}
+        >
+            <Route index element={<Navigate to="/admin/driver-management" replace />} />
+            <Route path="driver-management" element={<AdminUsersPage/>} />
+            <Route path="destinations" element={<AdminLocationsPage/>} />
+            <Route path="hazard-reports" element={<AdminReportsPage/>} />
+            <Route path="staff-accounts" element={<AdminStaffPage/>} />
+            <Route path="safety-report" element={<AdminSafetyReportPage/>} />
+            <Route path="trip-completion-report" element={<AdminTripReportPage embedded/>} />
+            <Route path="hazard-response-report" element={<AdminHazardResponseReportPage embedded/>} />
+            <Route path="live-risk-intelligence" element={<AiCandidatesPage embedded/>} />
+        </Route>
+        {/* Standalone versions of the 3 shared report pages, unchanged — still
+            used by Data Analyst / Traffic Authority / Security Agency
+            dashboards, which don't get the admin sidebar. */}
         <Route
-          path ="admin_locations"
-          loader={AdminLoader}
-          element={<AdminLocationsPage/>}
-        />
-        {/* <Route
-          path ="incidents.html"
-          loader={AdminLoader}
-          element={<AdminIncidentsPage/>}
-        /> */}
-         <Route
-          path ="reports.html"
-          loader={AdminLoader}
-          element={<AdminReportsPage/>}
-        />
-        {/* <Route
-          path ="saved_routes.html"
-          loader={AdminLoader}
-          element={<AdminSavedRoutesPage/>}
-        /> */}
-        <Route
-          path ="users.html"
-          loader={AdminLoader}
-          element={<AdminUsersPage/>}
-        />
-        <Route
-          path ="safety_report.html"
-          loader={AdminLoader}
-          element={<AdminSafetyReportPage/>}
-        />
-        <Route
-          path ="ai_candidates.html"
-          loader={AdminLoader}
+          path="ai-candidates"
+          loader={roleLoader("admin", "data_analyst")}
           element={<AiCandidatesPage/>}
         />
+        <Route
+          path="trip-report"
+          loader={roleLoader("admin", "data_analyst")}
+          element={<AdminTripReportPage/>}
+        />
+        <Route
+          path="hazard-response-report"
+          loader={roleLoader("admin", "traffic_authority", "security_agency", "data_analyst")}
+          element={<AdminHazardResponseReportPage/>}
+        />
+        <Route
+          path="traffic-authority"
+          loader={roleLoader("traffic_authority")}
+          element={<TrafficAuthorityDashboard/>}
+        />
+        <Route
+          path="security-agency"
+          loader={roleLoader("security_agency")}
+          element={<SecurityAgencyDashboard/>}
+        />
+        <Route
+          path="data-analyst"
+          loader={roleLoader("data_analyst", "admin")}
+          element={<DataAnalystDashboard/>}
+        />
           <Route
-            path="/login"
-            loader={GuestOnlyLoader}
+            path="/login" 
             element={<StartSession/>}
           >
                    <Route 
@@ -161,10 +176,15 @@ function App() {
                       action={loginAction}
                       element={<LoginPage/>}
                     />
-                   <Route 
-                      path="signin" 
+                   <Route
+                      path="signin"
                       action={signInAction}
                       element={<SignInPage/>}
+                    />
+                   <Route
+                      path="forgot-password"
+                      action={forgotPasswordAction}
+                      element={<ForgotPasswordPage/>}
                     />
          </Route>
          </>
